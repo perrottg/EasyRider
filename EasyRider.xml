@@ -23,7 +23,7 @@
 
 	<Frame name="EasyRiderFrame" toplevel="true" parent="UIParent" movable="true">
 		<Size>
-			<AbsDimension x="224" y="48"/>
+			<AbsDimension x="48" y="48"/>
 		</Size>
 		<Anchors>
 			<Anchor point="CENTER"/>

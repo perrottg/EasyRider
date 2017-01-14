@@ -1,6 +1,5 @@
 EasyRider = LibStub("AceAddon-3.0"):NewAddon("EasyRider", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0" );
 
---local mountBar = nil
 local buttonsInitialised = false
 local buttons = {}
 local mounts = {}
@@ -12,9 +11,8 @@ local CATEGORY_SURFACE = 3
 local CATEGORY_AQUATIC = 4
 local CATEGORY_PASSENGER = 5
 local CATEGORY_VENDOR = 6
-local CATEGORY_TRANSFORM = 7
 
-local TOTAL_CATEGORIES = 7
+local TOTAL_CATEGORIES = 6
 
 
 mounts[CATEGORY_GROUND] = 200175
@@ -23,38 +21,38 @@ mounts[CATEGORY_SURFACE] = 118089
 mounts[CATEGORY_AQUATIC] = 228919
 mounts[CATEGORY_PASSENGER] = 75973
 mounts[CATEGORY_VENDOR] = 61447
-mounts[CATEGORY_TRANSFORM] = 93326
 
 local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
 	title = "Summon Ground Mount",
-	description = "Summons and dismisses a ground mount."
+	icon = "Interface\\Icons\\Ability_mount_ridinghorse",
+	description = "Summons and dismisses a randam ground mount."
 }
 buttonInfo[CATEGORY_FLY] = {
 	title = "Summon Flying Mount",
-	description = "Summons and dismisses a flying mount."
+	icon = "Interface\\Icons\\Ability_mount_goldengryphon",	
+	description = "Summons and dismisses a randam flying mount."
 }
 buttonInfo[CATEGORY_SURFACE] = {
 	title = "Summon Surface Mount",
-	description = "Summons and dismisses a mount capable of walking on water."
+	icon = "Interface\\Icons\\Ability_mount_waterstridermount",
+	description = "Summons and dismisses a randam mount capable of walking on water."
 }
 buttonInfo[CATEGORY_AQUATIC] = {
 	title = "Summon Aquaic Mount",
-	description = "Summons and  dismisses a mount capable of swimming in water."
+	icon = "Interface\\Icons\\Ability_mount_seahorse",
+	description = "Summons and  dismisses a randam mount capable of swimming in water."
 }
 buttonInfo[CATEGORY_PASSENGER] = {
 	title = "Summon Passenger Mount", 
-	description = "Summons and dismisses a mount capable of transporting a passanger."
+	icon = "Interface\\Icons\\Ability_mount_rocketmount2",
+	description = "Summons and dismisses a randam mount capable of transporting a passanger."
 }
 buttonInfo[CATEGORY_VENDOR] = {
 	title = "Summon Vendor Mount",
-	description = "Summoms and dismisses a mount with a vendor."
+	icon = "Interface\\Icons\\Ability_mount_mammoth_brown_3seater",
+	description = "Summoms and dismisses a randam mount with a vendor."
 }
-buttonInfo[CATEGORY_TRANSFORM] = {
-	title = "Mount Transformation",
-	description = "Tranforms you into a mount."
-}
-
 
 local red = { r = 1.0, g = 0.2, b = 0.2 }
 local blue = { r = 0.4, g = 0.4, b = 1.0 }
@@ -78,6 +76,31 @@ mountDB[CATEGORY_PASSENGER] = {
 	[93326] = 1, -- Sandstone Drake
 }
 
+local function IndexMount(mount, category)
+	local index = tostring(mount.spellID)
+	local count = 0
+
+	if not mountDatastore.categoryIndex[category] then
+		mountDatastore.categoryIndex[category] = {}
+	end
+
+	if not mountDatastore.categoryIndex[category][tostring(false)] then
+		mountDatastore.categoryIndex[category][tostring(false)] = {}
+	end
+
+	if not mountDatastore.categoryIndex[category][tostring(true)] then
+		mountDatastore.categoryIndex[category][tostring(true)] = {}
+	end
+	
+	count = #mountDatastore.categoryIndex[category][tostring(false)]			
+	mountDatastore.categoryIndex[category][tostring(false)][count +1] = index
+
+	if mount.isFavorite then
+		count = #mountDatastore.categoryIndex[category][tostring(true)]			
+		mountDatastore.categoryIndex[category][tostring(true)][count +1] = index
+	end
+end 
+
 local function CacheMounts()
 	local collectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
 	local notCollectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
@@ -91,9 +114,7 @@ local function CacheMounts()
 	
 	local numMounts = C_MountJournal.GetNumDisplayedMounts()
 
-	for index = 1, numMounts do
-		
-
+	for index = 1, numMounts do		
 		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetDisplayedMountInfo(index)
 		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetDisplayedMountInfoExtra(index);
 		local index = tostring(spellID)
@@ -108,36 +129,26 @@ local function CacheMounts()
 		mount.icon = icon
 		mount.creatureID = creatureID
 		mount.mountType = mountType 
+		mount.isFavorite = isFavorite
 
 		mountDatastore.allMounts[index] = mount
 
-		if isSelfMount then
-			category = CATEGORY_TRANSFORM
-		elseif mountDB[CATEGORY_PASSENGER][mount.spellID] then
-			category = CATEGORY_PASSENGER
-		elseif mountType == 232 or mountType == 254 then
-			category = CATEGORY_AQUATIC
-		elseif mountType == 269 then
-			category = CATEGORY_SURFACE
+		-- Core mount types: ground, flying and aquatic
+		if mountType == 232 or mountType == 254 then
+			IndexMount(mount, CATEGORY_AQUATIC)
 		elseif mountType == 248 then
-			category = CATEGORY_FLY
+			IndexMount(mount, CATEGORY_FLY)
 		elseif mountType == 230 then
-			category = CATEGORY_GROUND			
-		end
-		
-		if category then
-			local indexCount = 0
-
-			if not mountDatastore.categoryIndex[category] then
-				mountDatastore.categoryIndex[category] = {}
-			else
-				indexCount = #mountDatastore.categoryIndex[category]
-			end
-			
-			mountDatastore.categoryIndex[category][indexCount +1] = index
+			IndexMount(mount, CATEGORY_GROUND)
 		end
 
+		if mountDB[CATEGORY_PASSENGER][mount.spellID] then
+			IndexMount(mount, CATEGORY_PASSENGER)
+		end
 		
+		if mountType == 269 then
+			IndexMount(mount, CATEGORY_SURFACE)
+		end		
 	end
 
 	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFlag)
@@ -158,16 +169,21 @@ local function GetMountBySpellID(spellID)
 	return mount
 end
 
-local function GetRandomMount(category, favoriteOnly)
+local function GetRandomMount(category, favoriteOnly )
 	--math.randomseed(time())
 
-	if not mountDatastore.categoryIndex[category] or #mountDatastore.categoryIndex[category] == 0 then
+	if not favoriteOnly then
+		favoriteOnly = false
+	end
+
+	if not mountDatastore.categoryIndex[category] or #mountDatastore.categoryIndex[category][tostring(favoriteOnly)] == 0 then
+		EasyRider:Print("NO MOUNTS!")
 		return nil
 	end
 
-	local indexCount = #mountDatastore.categoryIndex[category]	
-	local index = math.random(1, indexCount)
-	local spellID = mountDatastore.categoryIndex[category][index]
+	local count = #mountDatastore.categoryIndex[category][tostring(favoriteOnly)]	
+	local index = math.random(1, count)
+	local spellID = mountDatastore.categoryIndex[category][tostring(favoriteOnly)][index]
 
 	return mountDatastore.allMounts[spellID] 
 end
@@ -194,19 +210,15 @@ function  SummonMount(category)
 		return
 	end
 
+	
 	C_MountJournal.SummonByID(mount.mountID)
 end
 
 function ShowTooltip(button)	
-	local mount = GetMountBySpellID(mounts[button.category])
+	local preferred = EasyRider.db.profile.preferredMounts or {}
+	
 	local info = buttonInfo[button.category]
 	local tooltip = GameTooltip
-
-	if not info or not mount then
-		return
-	end
-
-	local _, _, _, castingTime, _, _, _ = GetSpellInfo(mount.spellID)
 
     --if button:GetRight() >= ( GetScreenWidth() / 2 ) then
     --    GameTooltip:SetOwner(button, "ANCHOR_LEFT");
@@ -217,42 +229,70 @@ function ShowTooltip(button)
 	GameTooltip_SetDefaultAnchor(tooltip, button)
 
     tooltip:AddLine(info.title, white.r, white.g, white.b);
-    tooltip:AddLine(format("%.1f sec cast", castingTime/1000), white.r, white.g, white.b);
+	tooltip:AddLine("1.5 sec cast", white.r, white.g, white.b);
 	tooltip:AddLine(info.description, nil, nil, nil, true);	
 	tooltip:AddLine(" ");
-	tooltip:AddLine(format("Preferred Mount: |cff33ff99%s|r", mount.name), white.r, white.g, white.b);
-	tooltip:AddLine(mount.description, nil, nil, nil, true);
-	tooltip:AddLine(" ");
-	tooltip:AddLine("|cffffffffLeft-Click:|r Summon preferred mount");
-	tooltip:AddLine("|cffffffffShift+Left-Click:|r Summon random mount" );
+	if preferred[button.category] then
+		local mount = GetMountBySpellID(preferred[button.category])
+
+		tooltip:AddLine("|cffffffffShift-Click:|r Summon "..mount.name);
+	end
 	tooltip:AddLine("|cffffffffAlt+Left-Click:|r Summon random favorite mount" );
-	--tooltip:AddLine("|cffffffffCtrl+Left-Click:|r Summon randam mount");
-	--tooltip:AddLine("|cffffffffRight-click:|r Choose mount to summon");
+	tooltip:AddLine("|cffffffffCtrl+Left-Click:|r Set active mount as preferred" );
 
     tooltip:Show();
 end
 
-function SummonMount(category)
+function SetPreferredMount(category)
+	if IsMounted() then
+		local preferred = EasyRider.db.profile.preferredMounts or {}
+		local index = 1
+		local mount = nil
+		repeat 
+			name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, isStealable, shouldConsolidate, spellID = UnitBuff("player", index) 
+			mount = GetMountBySpellID(spellID)
+			if mount then
+				preferred[category] = spellID
+				EasyRider.db.profile.preferredMounts = preferred
+				EasyRider:Print("Preferred mount set to "..mount.name)
+				break
+			end
+			index = index+1
+		until not name
+	end	
+end
+
+
+function SummonMount(category)	
+	local preferred = EasyRider.db.profile.preferredMounts or {}
 	local  mount = nil
 	
-	if IsControlKeyDown() then
-		
-	elseif  IsAltKeyDown() then
+	if IsAltKeyDown() then
+		EasyRider:Print("Request to summon random favorite")
 		mount = GetRandomMount(category, true)
 	elseif IsShiftKeyDown() then
-		mount = GetRandomMount(category)
+		mount = GetMountBySpellID(preferred[category])
 	else	  
-		mount = GetMountBySpellID(mounts[category])
+		mount = GetRandomMount(category)
 	end		
 	
 	if mount then
+		if IsMounted() then
+			Dismount()
+		end
 		C_MountJournal.SummonByID(mount.mountID)
+	else
+		EasyRider:Print("No mount found!")
 	end
 end
 
 function ButtonOnClick(actionButton, mouseButton)
 	if mouseButton == "LeftButton" then
-		SummonMount(actionButton.category)	
+		if IsControlKeyDown() then
+			SetPreferredMount(actionButton.category)
+		else
+			SummonMount(actionButton.category)	
+		end
 	elseif mouseButton == "RightButton" then
 
 	end	
@@ -267,52 +307,46 @@ function ButtonOnLeave(button)
 end
 
 function EasyRider_InitFrame()
-	EasyRider_InitButtons()	
+	local barOptions = EasyRider.db.profile.barOptions or {}
 
+	EasyRider_InitButtons()	
+	
 	local count = 0
 
 	for index = 1, TOTAL_CATEGORIES do
+		local info = buttonInfo[index]
 		local button = buttons[index]
-		local spellID = mounts[index]
-		
 
-		if spellID then 
-			local spellName, _, icon = GetSpellInfo(mounts[index])
+		button:ClearAllPoints();
 
-			button:ClearAllPoints();
+		if barOptions.horizontal then
 			button:SetPoint("LEFT", (6 + 38 * count), 0);
-
-			_G[button:GetName().."Icon"]:SetTexture(icon);
-
-			button:SetScript('OnClick', ButtonOnClick)
-			button:SetScript('OnEnter', ButtonOnEnter)
-			button:SetScript('OnLeave', ButtonOnLeave)
-
-			button:Show();
-			count = count + 1;		
 		else
-			button:Hide()
-		end;
-        
+			button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
+		end
+
+		_G[button:GetName().."Icon"]:SetTexture(info.icon);
+
+		button:SetScript('OnClick', ButtonOnClick)
+		button:SetScript('OnEnter', ButtonOnEnter)
+		button:SetScript('OnLeave', ButtonOnLeave)
+		button:Show();
+		count = count + 1;       
 	end
 	
-	EasyRiderFrame:SetWidth(10 + 38 * count);
+	if barOptions.horizontal then
+		EasyRiderFrame:SetWidth(10 + 38 * count);
+	else
+		EasyRiderFrame:SetHeight(10 + 38 * count);
+	end
 	
 	return count
 end
 
---function MountBar_OnEvent(self, event, ...)
---	if (event == "PLAYER_ENTER_COMBAT") then
---        if InCombatLockdown() then
---            local frame = getglobal("CraftBarFrame");
---            frame:Hide();
---        end
---    end
-
---	print(event)
---	DEFAULT_CHAT_FRAME:AddMessage(event)
---end 
 local defaults = {
+	profile = {
+		configured = false,
+	},
 	global = {
 
 	},
@@ -321,23 +355,21 @@ local defaults = {
 local function DelayedInit()
 	CacheMounts()
 
+	local config = EasyRider.db.profile
 	local frame = getglobal("EasyRiderFrame")
 	local count = EasyRider_InitFrame()
 
-	local x, y = GetCursorPosition();
-    local scale = UIParent:GetEffectiveScale();
+	 frame:ClearAllPoints();
 
-    x = x / scale;
-    y = y / scale;
-
-	if EasyRider.db.global.position then
+	if config.configured then
 		x = EasyRider.db.global.position.XPos
 		y = EasyRider.db.global.position.YPos
+		frame:SetPoint("BOTTOMLEFT", x, y)
+	else
+		--frame:SetPoint("CENTER", 0, 0)
+		frame:SetPoint("RIGHT")
 	end
 
-    frame:ClearAllPoints();
-    --frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y);
-	frame:SetPoint("BOTTOMLEFT", x, y)
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", function(self)
 		self:StartMoving()
@@ -353,7 +385,7 @@ local function DelayedInit()
 end
 
 function EasyRider:OnInitialize()	
-	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", defaults, true)
+	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", defaults)
 end
 
 function EasyRider:OnEnable()	
