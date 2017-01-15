@@ -21,6 +21,15 @@
 		</Scripts>
 	</Button>
 
+	<Frame name="EasyRiderDropDownMenu" inherits="UIDropDownMenuTemplate" id="1">
+		<Scripts>
+			<OnLoad>
+				<!--UIDropDownMenu_Initialize(self, EasyRiderDropDownMenu_OnLoad, "MENU");-->
+				UIDropDownMenu_Initialize(self, EasyRiderDropDownMenu_Initialize, "MENU");
+			</OnLoad>
+		</Scripts>
+	</Frame>
+
 	<Frame name="EasyRiderFrame" toplevel="true" parent="UIParent" movable="true">
 		<Size>
 			<AbsDimension x="48" y="48"/>

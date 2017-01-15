@@ -2,7 +2,6 @@ EasyRider = LibStub("AceAddon-3.0"):NewAddon("EasyRider", "AceConsole-3.0", "Ace
 
 local buttonsInitialised = false
 local buttons = {}
-local mounts = {}
 local mountDatastore = {}
 
 local CATEGORY_GROUND = 1
@@ -14,13 +13,11 @@ local CATEGORY_VENDOR = 6
 
 local TOTAL_CATEGORIES = 6
 
-
-mounts[CATEGORY_GROUND] = 200175
-mounts[CATEGORY_FLY] = 183117
-mounts[CATEGORY_SURFACE] = 118089
-mounts[CATEGORY_AQUATIC] = 228919
-mounts[CATEGORY_PASSENGER] = 75973
-mounts[CATEGORY_VENDOR] = 61447
+local ORIENTATION_HORIZONTAL = 1
+local ORIENTATION_VERTICAL = 2
+local ALIGNMENT_NONE = 1
+local ALIGNMENT_LEFT = 2
+local ALIGNMENT_RIGHT = 3
 
 local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
@@ -170,7 +167,7 @@ local function GetMountBySpellID(spellID)
 end
 
 local function GetRandomMount(category, favoriteOnly )
-	--math.randomseed(time())
+	--math.randomseed(44)
 
 	if not favoriteOnly then
 		favoriteOnly = false
@@ -214,11 +211,17 @@ function  SummonMount(category)
 	C_MountJournal.SummonByID(mount.mountID)
 end
 
-function ShowTooltip(button)	
+function EasyRider:ShowPopUpMenu(button)
+	GameTooltip:Hide()
+	ToggleDropDownMenu(1, nil, EasyRiderDropDownMenu, button, 0, 0);
+end
+
+function EasyRider:ShowTooltip(category)	
 	local preferred = EasyRider.db.profile.preferredMounts or {}
 	
-	local info = buttonInfo[button.category]
+	local info = buttonInfo[category]
 	local tooltip = GameTooltip
+	local preferredMount = nil
 
     --if button:GetRight() >= ( GetScreenWidth() / 2 ) then
     --    GameTooltip:SetOwner(button, "ANCHOR_LEFT");
@@ -226,21 +229,33 @@ function ShowTooltip(button)
     --    GameTooltip:SetOwner(button, "ANCHOR_RIGHT");
     --end
 
-	GameTooltip_SetDefaultAnchor(tooltip, button)
+	if preferred[category] then
+		preferredMount = GetMountBySpellID(preferred[category])
+	end
+
+	GameTooltip_SetDefaultAnchor(tooltip, buttons[category])
 
     tooltip:AddLine(info.title, white.r, white.g, white.b);
 	tooltip:AddLine("1.5 sec cast", white.r, white.g, white.b);
 	tooltip:AddLine(info.description, nil, nil, nil, true);	
 	tooltip:AddLine(" ");
-	if preferred[button.category] then
-		local mount = GetMountBySpellID(preferred[button.category])
 
-		tooltip:AddLine("|cffffffffShift-Click:|r Summon "..mount.name);
+	if preferredMount then 
+		tooltip:AddLine(format("|cffffffffPreferred Mount:|r |cff33ff99%s|r", preferredMount.name));
+	else
+		tooltip:AddLine("|cffffffffPreferred Mount:|r not set");
 	end
-	tooltip:AddLine("|cffffffffAlt+Left-Click:|r Summon random favorite mount" );
-	tooltip:AddLine("|cffffffffCtrl+Left-Click:|r Set active mount as preferred" );
 
+	tooltip:AddLine(" ");
+	tooltip:AddLine("|cffffffffShift-Click:|r Summon preferred mount");
+	tooltip:AddLine("|cffffffffAlt+Left-Click:|r Summon random favorite mount");
+	tooltip:AddLine("|cffffffffCtrl+Left-Click:|r Set active mount as preferred");
+	tooltip:AddLine("|cffffffffRight-Click:|r Open options  menu");
     tooltip:Show();
+end
+
+function EasyRider:ShowActionBar()
+
 end
 
 function SetPreferredMount(category)
@@ -294,20 +309,170 @@ function ButtonOnClick(actionButton, mouseButton)
 			SummonMount(actionButton.category)	
 		end
 	elseif mouseButton == "RightButton" then
-
+		EasyRider:ShowPopUpMenu(actionButton)
 	end	
 end
 
+function ToggleLocked()
+	local options = EasyRider.db.profile.actionBar or {}
+
+	options.locked = not options.locked	
+	EasyRider.db.profile.actionBar = options
+end
+
+function SetOrientation(dropdownbutton, arg1, arg2, checked)
+	local options = EasyRider.db.profile.actionBar or {}
+
+	options.orientation = arg1 
+	EasyRider.db.profile.actionBar = options
+	ShowActionBar()
+end
+	
+function SetAlignment(dropdownbutton, arg1, arg2, checked)
+	local options = EasyRider.db.profile.actionBar or {}
+
+	options.alignment = arg1
+	EasyRider.db.profile.actionBar = options
+	ShowActionBar()
+end
+
+function ButtonOnLoad(button)
+	button:RegisterForClicks("AnyUp")
+end
+
 function ButtonOnEnter(button)
-	ShowTooltip(button)
+	EasyRider:ShowTooltip(button.category)
 end
 
 function ButtonOnLeave(button)
 	GameTooltip:Hide()
 end
 
+function ButtonOnDragStart(button)
+	local options = EasyRider.db.profile.actionBar
+
+	if not options.locked then
+		EasyRiderFrame:StartMoving()
+	end
+end
+
+function ButtonOnDragStop(button)
+	local position = {}
+
+	EasyRiderFrame:StopMovingOrSizing()
+
+	position.XPos = EasyRiderFrame:GetLeft()
+	position.YPos = EasyRiderFrame:GetBottom()
+	EasyRider.db.profile.actionBar.position = position
+	EasyRider.db.profile.actionBar.alignment = ALIGNMENT_NONE
+end
+
+function FrameOnLoad(frame)
+	--frame:RegisterForClicks("AnyUp")
+end
+
+
+
+  -- menu create function
+function EasyRiderDropDownMenu_Initialize(self, level)
+	if not level then
+		return
+	end
+
+	local options = EasyRider.db.profile.actionBar or {}
+	local info = nil
+	 
+	if level == 1 then
+		
+		info = UIDropDownMenu_CreateInfo();
+		info.hasArrow = false;
+		info.notCheckable = false;
+		info.text = "Locked";
+		info.checked = false
+		info.checked = options.locked
+		info.func = ToggleLocked 
+		UIDropDownMenu_AddButton(info, level);
+
+		info = UIDropDownMenu_CreateInfo();
+		info.hasArrow = true;
+		info.notCheckable = true;
+		info.text = "Orientation";
+		info.value = {
+			["Level1_Key"] = "Orientation";
+		}
+		UIDropDownMenu_AddButton(info, level);
+		
+		info = UIDropDownMenu_CreateInfo();
+		info.hasArrow = true;
+		info.notCheckable = true;
+		
+		info.text = "Alignment";
+		
+		info.value = {
+			["Level1_Key"] = "Alignment";
+		}
+		UIDropDownMenu_AddButton(info, level);
+	end
+	if level == 2 then
+		local Level1_Key = UIDROPDOWNMENU_MENU_VALUE["Level1_Key"];
+
+		if Level1_Key == "Orientation" then
+			info = UIDropDownMenu_CreateInfo();
+			info.hasArrow = false;
+			info.notCheckable = false;
+			info.text = "Horizontal";
+			info.checked = options.orientation == ORIENTATION_HORIZONTAL
+			info.func = SetOrientation
+			info.value = ORIENTATION_HORIZONTAL
+			info.arg1 = ORIENTATION_HORIZONTAL
+			UIDropDownMenu_AddButton(info, level);
+			
+			info = UIDropDownMenu_CreateInfo();
+			info.hasArrow = false;
+			info.notCheckable = false;
+			info.text = "Vertical";
+			info.checked = not options.orientation or options.orientation == ORIENTATION_VERTICAL
+			info.func = SetOrientation
+			info.value = ORIENTATION_VERTICAL
+			info.arg1 = ORIENTATION_VERTICAL
+			UIDropDownMenu_AddButton(info, level);
+		
+		elseif Level1_Key == "Alignment" then
+			info = UIDropDownMenu_CreateInfo();
+			info.hasArrow = false;
+			info.notCheckable = false;
+			info.text = "None";
+			info.checked = options.alignment == ALIGNMENT_NONE
+			info.func = SetAlignment
+			info.value = ALIGNMENT_NONE
+			info.arg1 = ALIGNMENT_NONE
+			UIDropDownMenu_AddButton(info, level);
+			
+			info = UIDropDownMenu_CreateInfo();
+			info.hasArrow = false;
+			info.notCheckable = false;
+			info.text = "Left";
+			info.checked = options.alignment == ALIGNMENT_LEFT
+			info.func = SetAlignment
+			info.value = ALIGNMENT_LEFT
+			info.arg1 = ALIGNMENT_LEFT
+			UIDropDownMenu_AddButton(info, level);
+			
+			info = UIDropDownMenu_CreateInfo();
+			info.hasArrow = false;
+			info.notCheckable = false;
+			info.text = "Right";
+			info.checked = not options.alignment or options.alignment == ALIGNMENT_RIGHT
+			info.func = SetAlignment			
+			info.value = ALIGNMENT_RIGHT
+			info.arg1 = ALIGNMENT_RIGHT
+			UIDropDownMenu_AddButton(info, level);		
+		end
+	end
+end
+
 function EasyRider_InitFrame()
-	local barOptions = EasyRider.db.profile.barOptions or {}
+	local options = EasyRider.db.profile.actionBar or {}
 
 	EasyRider_InitButtons()	
 	
@@ -317,9 +482,11 @@ function EasyRider_InitFrame()
 		local info = buttonInfo[index]
 		local button = buttons[index]
 
+		
 		button:ClearAllPoints();
 
-		if barOptions.horizontal then
+		if options.orientation == ORIENTATION_HORIZONTAL then
+
 			button:SetPoint("LEFT", (6 + 38 * count), 0);
 		else
 			button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
@@ -327,14 +494,21 @@ function EasyRider_InitFrame()
 
 		_G[button:GetName().."Icon"]:SetTexture(info.icon);
 
+
+		button:SetScript('OnLoad', ButtonOnLoad)
 		button:SetScript('OnClick', ButtonOnClick)
 		button:SetScript('OnEnter', ButtonOnEnter)
 		button:SetScript('OnLeave', ButtonOnLeave)
+
+		button:RegisterForDrag("LeftButton")
+		button:SetScript("OnDragStart", ButtonOnDragStart)
+		button:SetScript("OnDragStop", ButtonOnDragStop)
+
 		button:Show();
 		count = count + 1;       
 	end
 	
-	if barOptions.horizontal then
+	if options.orientation == ORIENTATION_HORIZONTAL then
 		EasyRiderFrame:SetWidth(10 + 38 * count);
 	else
 		EasyRiderFrame:SetHeight(10 + 38 * count);
@@ -343,49 +517,130 @@ function EasyRider_InitFrame()
 	return count
 end
 
-local defaults = {
-	profile = {
-		configured = false,
-	},
-	global = {
+--local defaults = {
+--	profile = {
+--		configured = false,
+--	},
+--	global = {
 
-	},
-};
+--	},
+--};
 
-local function DelayedInit()
-	CacheMounts()
-
-	local config = EasyRider.db.profile
+function CreateActionBar()
+	--local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
 	local frame = getglobal("EasyRiderFrame")
-	local count = EasyRider_InitFrame()
+	local options = EasyRider.db.profile.actionBar or {}
+	
 
-	 frame:ClearAllPoints();
+	for index = 1, TOTAL_CATEGORIES do
+		local button = CreateFrame("Button", "EasyRider_Button"..index, EasyRiderFrame, "EasyRiderButtonTemplate");
+		--local button = CreateFrame("Button", "EasyRiderActionBar_Button"..index, frame, "SecureActionButtonTemplate");
+		local info = buttonInfo[index]
 
-	if config.configured then
-		x = EasyRider.db.global.position.XPos
-		y = EasyRider.db.global.position.YPos
-		frame:SetPoint("BOTTOMLEFT", x, y)
-	else
-		--frame:SetPoint("CENTER", 0, 0)
-		frame:SetPoint("RIGHT")
+		button.category = index
+		button:SetScript('OnLoad', ButtonOnLoad)
+		button:SetScript('OnClick', ButtonOnClick)
+		button:SetScript('OnEnter', ButtonOnEnter)
+		button:SetScript('OnLeave', ButtonOnLeave)button:RegisterForDrag("LeftButton")
+		button:SetScript("OnDragStart", ButtonOnDragStart)
+		button:SetScript("OnDragStop", ButtonOnDragStop)
+
+		--_G["EasyRiderActionBar_Button"..index.."Icon"]:SetTexture(info.icon);
+		_G[button:GetName().."Icon"]:SetTexture(info.icon);
+
+		buttons[index] = button
 	end
 
 	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", function(self)
-		self:StartMoving()
-	end)
-	frame:SetScript("OnDragStop",function(self)
-		self:StopMovingOrSizing()
-		EasyRider.db.global.position = {}
-		EasyRider.db.global.position.XPos = self:GetLeft()
-		EasyRider.db.global.position.YPos = self:GetBottom()
-	end)
+
+	--EasyRider.actionBar = frame
+end
+
+function ShowActionBar()
+	local count = 0
+	--local frame = EasyRider.actionBar
+	local frame = getglobal("EasyRiderFrame")
+	local options = EasyRider.db.profile.actionBar or {}
+
+	frame:Hide()
+
+	for index = 1, TOTAL_CATEGORIES do		
+		local button = buttons[index]
+		local info = buttonInfo[index]
+		
+		--_G[button:GetName().."Icon"]:SetTexture(info.icon);
+
+		button:ClearAllPoints();
+
+		if options.orientation == ORIENTATION_HORIZONTAL then
+			button:SetPoint("LEFT", (6 + 38 * count), 0);
+		else
+			button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
+		end
+
+		button:Show();
+		count = count + 1;       
+	end
 	
-	frame:Show()
+	if options.orientation == ORIENTATION_HORIZONTAL then
+		frame:SetWidth(10 + 38 * count);
+	else
+		frame:SetHeight(10 + 38 * count);
+	end
+
+	frame:ClearAllPoints();
+
+	if options.alignment == ALIGNMENT_NONE and options.position then
+		x = options.position.XPos
+		y = options.position.YPos
+		frame:SetPoint("BOTTOMLEFT", x, y)
+	else
+		if options.alignment and options.alignment == ALIGNMENT_LEFT then
+			frame:SetPoint("LEFT")
+		else
+			frame:SetPoint("RIGHT")
+		end
+	end
+
+	frame:RegisterForDrag("LeftButton")
+
+	frame:Show()	
+end
+
+
+
+local function DelayedInit()
+	CacheMounts()
+	CreateActionBar()
+	ShowActionBar()
+	--EasyRider.actionBar:Show()
+
+--	local frame = getglobal("EasyRiderFrame")
+--	local count = EasyRider_InitFrame()
+--	local options = EasyRider.db.profile.actionBar or {}
+
+--	 frame:ClearAllPoints();
+
+
+--	if options.alignment == ALIGNMENT_NONE and options.position then
+--		x = options.position.XPos
+--		y = options.position.YPos
+--		frame:SetPoint("BOTTOMLEFT", x, y)
+--	else
+--		if options.alignment and options.alignment == ALIGNMENT_LEFT then
+--			frame:SetPoint("LEFT")
+--		else
+--			frame:SetPoint("RIGHT")
+--		end
+--	end
+
+--	frame:RegisterForDrag("LeftButton")
+
+--	frame:Show()
 end
 
 function EasyRider:OnInitialize()	
-	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", defaults)
+	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
 end
 
 function EasyRider:OnEnable()	
