@@ -543,10 +543,10 @@ function ShowActionBar()
 	
 	if options.orientation == ORIENTATION_HORIZONTAL then
 		frame:SetWidth(10 + 38 * count);
-		frame:SetHeight(40)
+		frame:SetHeight(38)
 	else
 		frame:SetHeight(10 + 38 * count);
-		frame:SetWidth(40)
+		frame:SetWidth(38)
 	end
 
 	frame:ClearAllPoints();
