@@ -4,6 +4,17 @@ local buttonsInitialised = false
 local buttons = {}
 local mountDatastore = {}
 
+local mountTypes = {
+	GROUND = 1,
+	FLY = 2,
+	SURFACE = 3,
+	AQUATIC = 4,
+	PASSENGER = 5,
+	VENDOR = 6,	
+}
+
+local TOTAL_MOUNT_TYPES = 6
+
 local CATEGORY_GROUND = 1
 local CATEGORY_FLY = 2
 local CATEGORY_SURFACE = 3
@@ -23,32 +34,32 @@ local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
 	title = "Summon Ground Mount",
 	icon = "Interface\\Icons\\Ability_mount_ridinghorse",
-	description = "Summons and dismisses a randam ground mount."
+	description = "Summons and dismisses a random ground mount."
 }
 buttonInfo[CATEGORY_FLY] = {
 	title = "Summon Flying Mount",
 	icon = "Interface\\Icons\\Ability_mount_goldengryphon",	
-	description = "Summons and dismisses a randam flying mount."
+	description = "Summons and dismisses a random flying mount."
 }
 buttonInfo[CATEGORY_SURFACE] = {
 	title = "Summon Surface Mount",
 	icon = "Interface\\Icons\\Ability_mount_waterstridermount",
-	description = "Summons and dismisses a randam mount capable of walking on water."
+	description = "Summons and dismisses a random mount capable of walking on water."
 }
 buttonInfo[CATEGORY_AQUATIC] = {
-	title = "Summon Aquaic Mount",
+	title = "Summon Aquatic Mount",
 	icon = "Interface\\Icons\\Ability_mount_seahorse",
-	description = "Summons and  dismisses a randam mount capable of swimming in water."
+	description = "Summons and  dismisses a random mount capable of swimming in water."
 }
 buttonInfo[CATEGORY_PASSENGER] = {
 	title = "Summon Passenger Mount", 
 	icon = "Interface\\Icons\\Ability_mount_rocketmount2",
-	description = "Summons and dismisses a randam mount capable of transporting a passanger."
+	description = "Summons and dismisses a random mount capable of transporting a passenger."
 }
 buttonInfo[CATEGORY_VENDOR] = {
 	title = "Summon Vendor Mount",
 	icon = "Interface\\Icons\\Ability_mount_mammoth_brown_3seater",
-	description = "Summoms and dismisses a randam mount with a vendor."
+	description = "Summons and dismisses a random mount with a vendor."
 }
 
 local red = { r = 1.0, g = 0.2, b = 0.2 }
@@ -58,20 +69,6 @@ local yellow = { r = 1.0, g = 1.0, b = 0.2 }
 local gray = { r = 0.5, g = 0.5, b = 0.5 }
 local black = { r = 0.0, g = 0.0, b = 0.0 }
 local white = { r = 1.0, g = 1.0, b = 1.0 }
-
-local mountDB = {}
-mountDB[CATEGORY_PASSENGER] = {
-	[61467] = 2, -- Grand Black War Mammoth (horde)
-	[61465] = 2, -- Grand Black War Mammoth (alliance)
-	[61469] = 2, -- Grand Ice Mammoth (horde)
-	[61470] = 2, -- Grand Ice Mammoth (alliance)
-	[61447] = 2, -- Traveler's Tundra Mammoth (horde)
-	[61425] = 2, -- Traveler's Tundra Mammoth (alliance)
-	[55531] = 1, -- Mechano-hog
-	[60424] = 1, -- Mekgineer's Chopper
-	[75973] = 1, -- X-53 Touring Rocket
-	[93326] = 1, -- Sandstone Drake
-}
 
 local function IndexMount(mount, category)
 	local index = tostring(mount.spellID)
@@ -116,36 +113,35 @@ local function CacheMounts()
 		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetDisplayedMountInfoExtra(index);
 		local index = tostring(spellID)
 
-		local mount = {}
-		local category = nil
+		if isUsable or EasyRider:IsMountType(spellID, mountTypes.AQUATIC) then
+			local mount = {}
+			local mountTyped = false
 
-		mount.name = creatureName
-		mount.description = description
-		mount.spellID = spellID
-		mount.mountID = mountID
-		mount.icon = icon
-		mount.creatureID = creatureID
-		mount.mountType = mountType 
-		mount.isFavorite = isFavorite
+			mount.name = creatureName
+			mount.description = description
+			mount.spellID = spellID
+			mount.mountID = mountID
+			mount.icon = icon
+			mount.creatureID = creatureID
+			mount.mountType = mountType 
+			mount.isFavorite = isFavorite
 
-		mountDatastore.allMounts[index] = mount
+			mountDatastore.allMounts[index] = mount
 
-		-- Core mount types: ground, flying and aquatic
-		if mountType == 232 or mountType == 254 then
-			IndexMount(mount, CATEGORY_AQUATIC)
-		elseif mountType == 248 then
-			IndexMount(mount, CATEGORY_FLY)
-		elseif mountType == 230 then
-			IndexMount(mount, CATEGORY_GROUND)
+			for i = mountTypes.SURFACE, TOTAL_MOUNT_TYPES do
+				if EasyRider:IsMountType(mount.spellID, i) then
+					IndexMount(mount, i)		
+					mountTyped = true
+				end
+			end
+
+			if mountType == 248 and not mountTyped then
+				IndexMount(mount, CATEGORY_FLY)
+			elseif mountType == 230 and not mountTyped then
+				IndexMount(mount, CATEGORY_GROUND)
+			end
+
 		end
-
-		if mountDB[CATEGORY_PASSENGER][mount.spellID] then
-			IndexMount(mount, CATEGORY_PASSENGER)
-		end
-		
-		if mountType == 269 then
-			IndexMount(mount, CATEGORY_SURFACE)
-		end		
 	end
 
 	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFlag)
@@ -158,10 +154,6 @@ local function GetMountBySpellID(spellID)
 	end
 
 	local mount = mountDatastore.allMounts[tostring(spellID)]
-
-	if not mount then 
-		EasyRider:Print("Mount not found for spellID: ".. spellID) 
-	end
 
 	return mount
 end
@@ -200,38 +192,22 @@ function EasyRider_InitButtons()
 	buttonsInitialised = true;
 end
 
-function  SummonMount(category)
-	local mount = GetMountBySpellID(mounts[index])
-
-	if not mount then  
-		return
-	end
-
-	
-	C_MountJournal.SummonByID(mount.mountID)
-end
-
 function EasyRider:ShowPopUpMenu(button)
 	GameTooltip:Hide()
 	ToggleDropDownMenu(1, nil, EasyRiderDropDownMenu, button, 0, 0);
 end
 
 function EasyRider:ShowTooltip(category)	
-	local preferred = EasyRider.db.profile.preferredMounts or {}
+	local preferred = EasyRider.db.char.preferredMounts or {}
 	
 	local info = buttonInfo[category]
 	local tooltip = GameTooltip
-	local preferredMount = nil
 
     --if button:GetRight() >= ( GetScreenWidth() / 2 ) then
     --    GameTooltip:SetOwner(button, "ANCHOR_LEFT");
     --else
     --    GameTooltip:SetOwner(button, "ANCHOR_RIGHT");
     --end
-
-	if preferred[category] then
-		preferredMount = GetMountBySpellID(preferred[category])
-	end
 
 	GameTooltip_SetDefaultAnchor(tooltip, buttons[category])
 
@@ -240,8 +216,9 @@ function EasyRider:ShowTooltip(category)
 	tooltip:AddLine(info.description, nil, nil, nil, true);	
 	tooltip:AddLine(" ");
 
-	if preferredMount then 
-		tooltip:AddLine(format("|cffffffffPreferred Mount:|r |cff33ff99%s|r", preferredMount.name));
+	if preferred[category] then 
+		name, _, icon = GetSpellInfo(preferred[category])
+		tooltip:AddLine(format("|cffffffffPreferred Mount:|r |cff33ff99%s|r", name));
 	else
 		tooltip:AddLine("|cffffffffPreferred Mount:|r not set");
 	end
@@ -254,13 +231,9 @@ function EasyRider:ShowTooltip(category)
     tooltip:Show();
 end
 
-function EasyRider:ShowActionBar()
-
-end
-
 function SetPreferredMount(category)
 	if IsMounted() then
-		local preferred = EasyRider.db.profile.preferredMounts or {}
+		local preferred = EasyRider.db.char.preferredMounts or {}
 		local index = 1
 		local mount = nil
 		repeat 
@@ -268,7 +241,7 @@ function SetPreferredMount(category)
 			mount = GetMountBySpellID(spellID)
 			if mount then
 				preferred[category] = spellID
-				EasyRider.db.profile.preferredMounts = preferred
+				EasyRider.db.char.preferredMounts = preferred
 				EasyRider:Print("Preferred mount set to "..mount.name)
 				break
 			end
@@ -279,7 +252,7 @@ end
 
 
 function SummonMount(category)	
-	local preferred = EasyRider.db.profile.preferredMounts or {}
+	local preferred = EasyRider.db.char.preferredMounts or {}
 	local  mount = nil
 	
 	if IsAltKeyDown() then
@@ -292,9 +265,6 @@ function SummonMount(category)
 	end		
 	
 	if mount then
-		if IsMounted() then
-			Dismount()
-		end
 		C_MountJournal.SummonByID(mount.mountID)
 	else
 		EasyRider:Print("No mount found!")
@@ -313,26 +283,33 @@ function ButtonOnClick(actionButton, mouseButton)
 	end	
 end
 
-function ToggleLocked()
-	local options = EasyRider.db.profile.actionBar or {}
+function ToggleLocked(dropdownbutton, arg1, arg2, checked)
+	local options = EasyRider.db.global.actionBar or {}
 
-	options.locked = not options.locked	
-	EasyRider.db.profile.actionBar = options
+	options.locked = not checked
+	EasyRider.db.global.actionBar = options
+end
+
+function ToggleAutoHide(dropdownbutton, arg1, arg2, checked)
+	local options = EasyRider.db.global.actionBar or {}
+
+	options.alwaysShow = checked
+	EasyRider.db.global.actionBar = options
 end
 
 function SetOrientation(dropdownbutton, arg1, arg2, checked)
-	local options = EasyRider.db.profile.actionBar or {}
+	local options = EasyRider.db.global.actionBar or {}
 
 	options.orientation = arg1 
-	EasyRider.db.profile.actionBar = options
+	EasyRider.db.global.actionBar = options
 	ShowActionBar()
 end
 	
 function SetAlignment(dropdownbutton, arg1, arg2, checked)
-	local options = EasyRider.db.profile.actionBar or {}
+	local options = EasyRider.db.global.actionBar or {}
 
 	options.alignment = arg1
-	EasyRider.db.profile.actionBar = options
+	EasyRider.db.global.actionBar = options
 	ShowActionBar()
 end
 
@@ -349,7 +326,7 @@ function ButtonOnLeave(button)
 end
 
 function ButtonOnDragStart(button)
-	local options = EasyRider.db.profile.actionBar
+	local options = EasyRider.db.global.actionBar or {}
 
 	if not options.locked then
 		EasyRiderFrame:StartMoving()
@@ -363,8 +340,8 @@ function ButtonOnDragStop(button)
 
 	position.XPos = EasyRiderFrame:GetLeft()
 	position.YPos = EasyRiderFrame:GetBottom()
-	EasyRider.db.profile.actionBar.position = position
-	EasyRider.db.profile.actionBar.alignment = ALIGNMENT_NONE
+	EasyRider.db.global.actionBar.position = position
+	EasyRider.db.global.actionBar.alignment = ALIGNMENT_NONE
 end
 
 function FrameOnLoad(frame)
@@ -379,10 +356,19 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 		return
 	end
 
-	local options = EasyRider.db.profile.actionBar or {}
+	local options = EasyRider.db.global.actionBar or {}
 	local info = nil
 	 
 	if level == 1 then
+
+		info = UIDropDownMenu_CreateInfo();
+		info.hasArrow = false;
+		info.notCheckable = false;
+		info.text = "Auto Hide";
+		info.checked = false
+		info.checked = not options.alwaysShow
+		info.func = ToggleAutoHide 
+		UIDropDownMenu_AddButton(info, level);
 		
 		info = UIDropDownMenu_CreateInfo();
 		info.hasArrow = false;
@@ -471,65 +457,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 	end
 end
 
-function EasyRider_InitFrame()
-	local options = EasyRider.db.profile.actionBar or {}
-
-	EasyRider_InitButtons()	
-	
-	local count = 0
-
-	for index = 1, TOTAL_CATEGORIES do
-		local info = buttonInfo[index]
-		local button = buttons[index]
-
-		
-		button:ClearAllPoints();
-
-		if options.orientation == ORIENTATION_HORIZONTAL then
-
-			button:SetPoint("LEFT", (6 + 38 * count), 0);
-		else
-			button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
-		end
-
-		_G[button:GetName().."Icon"]:SetTexture(info.icon);
-
-
-		button:SetScript('OnLoad', ButtonOnLoad)
-		button:SetScript('OnClick', ButtonOnClick)
-		button:SetScript('OnEnter', ButtonOnEnter)
-		button:SetScript('OnLeave', ButtonOnLeave)
-
-		button:RegisterForDrag("LeftButton")
-		button:SetScript("OnDragStart", ButtonOnDragStart)
-		button:SetScript("OnDragStop", ButtonOnDragStop)
-
-		button:Show();
-		count = count + 1;       
-	end
-	
-	if options.orientation == ORIENTATION_HORIZONTAL then
-		EasyRiderFrame:SetWidth(10 + 38 * count);
-	else
-		EasyRiderFrame:SetHeight(10 + 38 * count);
-	end
-	
-	return count
-end
-
---local defaults = {
---	profile = {
---		configured = false,
---	},
---	global = {
-
---	},
---};
-
 function CreateActionBar()
 	--local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
 	local frame = getglobal("EasyRiderFrame")
-	local options = EasyRider.db.profile.actionBar or {}
+	local options = EasyRider.db.global.actionBar or {}
 	
 
 	for index = 1, TOTAL_CATEGORIES do
@@ -560,9 +491,9 @@ function ShowActionBar()
 	local count = 0
 	--local frame = EasyRider.actionBar
 	local frame = getglobal("EasyRiderFrame")
-	local options = EasyRider.db.profile.actionBar or {}
+	local options = EasyRider.db.global.actionBar or {}
 
-	frame:Hide()
+	--frame:Hide()
 
 	for index = 1, TOTAL_CATEGORIES do		
 		local button = buttons[index]
@@ -607,47 +538,89 @@ function ShowActionBar()
 	frame:Show()	
 end
 
-
+function HideActionBar()
+	local frame = getglobal("EasyRiderFrame")
+	frame:Hide()
+end
 
 local function DelayedInit()
 	CacheMounts()
 	CreateActionBar()
 	ShowActionBar()
-	--EasyRider.actionBar:Show()
+end
 
---	local frame = getglobal("EasyRiderFrame")
---	local count = EasyRider_InitFrame()
---	local options = EasyRider.db.profile.actionBar or {}
+function EasyRider:PET_BATTLE_OPENING_START()
+	local options = EasyRider.db.global.actionBar or {}
 
---	 frame:ClearAllPoints();
+	if not options.alwaysShow then 
+		HideActionBar()
+	end
+end
 
+function EasyRider:PET_BATTLE_CLOSE()
+	local options = EasyRider.db.global.actionBar or {}
+	
+	if not options.alwaysShow then
+		ShowActionBar()
+	end
+end
 
---	if options.alignment == ALIGNMENT_NONE and options.position then
---		x = options.position.XPos
---		y = options.position.YPos
---		frame:SetPoint("BOTTOMLEFT", x, y)
---	else
---		if options.alignment and options.alignment == ALIGNMENT_LEFT then
---			frame:SetPoint("LEFT")
---		else
---			frame:SetPoint("RIGHT")
---		end
---	end
+function EasyRider:PLAYER_REGEN_ENABLED()
+	local options = EasyRider.db.global.actionBar or {}
 
---	frame:RegisterForDrag("LeftButton")
+	if not options.alwaysShow then
+		ShowActionBar()
+	end
+end
 
---	frame:Show()
+function EasyRider:PLAYER_REGEN_DISABLED()
+	local options = EasyRider.db.global.actionBar or {}
+
+	if not options.alwaysShow then 
+		HideActionBar()
+	end
+end
+
+function EasyRider:UNIT_ENTERED_VEHICLE(event, arg1)
+	if arg1 == "player" then
+		local options = EasyRider.db.global.actionBar or {}
+
+		if not options.alwaysShow then 
+			HideActionBar()
+		end
+	end
+end
+
+function EasyRider:UNIT_EXITED_VEHICLE(event, arg1)
+	if arg1 == "player" then
+		local options = EasyRider.db.global.actionBar or {}
+
+		if not options.alwaysShow then
+			ShowActionBar()
+		end
+	end
 end
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
-end
-
-function EasyRider:OnEnable()	
 	EasyRider:ScheduleTimer(DelayedInit, 3)
 end
 
-function EasyRider:OnDisable()
+function EasyRider:OnEnable()	
+	EasyRider:RegisterEvent("PET_BATTLE_OPENING_START")
+	EasyRider:RegisterEvent("PET_BATTLE_CLOSE")
+	EasyRider:RegisterEvent("PLAYER_REGEN_ENABLED")
+	EasyRider:RegisterEvent("PLAYER_REGEN_DISABLED")
+	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
+	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
+end
 
+function EasyRider:OnDisable()
+	EasyRider:UnregisterEvent("PET_BATTLE_OPENING_START")
+	EasyRider:UnregisterEvent("PET_BATTLE_CLOSE")
+	EasyRider:UnregisterEvent("PLAYER_REGEN_ENABLED")
+	EasyRider:UnregisterEvent("PLAYER_REGEN_DISABLED")
+	EasyRider:UnregisterEvent("UNIT_ENTERED_VEHICLE")
+	EasyRider:UnregisterEvent("UNIT_EXITED_VEHICLE")
 end
 
