@@ -334,14 +334,16 @@ function ButtonOnDragStart(button)
 end
 
 function ButtonOnDragStop(button)
-	local position = {}
+	local options = EasyRider.db.global.actionBar or {}
 
 	EasyRiderFrame:StopMovingOrSizing()
 
-	position.XPos = EasyRiderFrame:GetLeft()
-	position.YPos = EasyRiderFrame:GetBottom()
-	EasyRider.db.global.actionBar.position = position
-	EasyRider.db.global.actionBar.alignment = ALIGNMENT_NONE
+	options.position = {}
+	options.position.XPos = EasyRiderFrame:GetLeft()
+	options.position.YPos = EasyRiderFrame:GetBottom()
+	options.alignment = ALIGNMENT_NONE
+
+	EasyRider.db.global.actionBar = options
 end
 
 function FrameOnLoad(frame)
