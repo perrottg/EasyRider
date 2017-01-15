@@ -297,22 +297,31 @@ function ToggleAutoHide(dropdownbutton, arg1, arg2, checked)
 	EasyRider.db.global.actionBar = options
 end
 
-function SetOrientation(dropdownbutton, arg1, arg2, checked)
+function SetActionBarOrientation(orientation)
 	local options = EasyRider.db.global.actionBar or {}
 
-	options.orientation = arg1 
-	EasyRider.db.global.actionBar = options
-	ShowActionBar()
+	if options.orientation ~= orientation then
+		options.orientation = orientation
+		EasyRider.db.global.actionBar = options
+		ShowActionBar()
+	end
+end
+
+function SetActionBarAlignment(alignment)
+	local options = EasyRider.db.global.actionBar or {}
+
+	if options.alignment ~= alignment then 
+		options.alignment = alignment
+		EasyRider.db.global.actionBar = options
+
+		if alignment == ALIGNMENT_NONE  and not options.position then
+			SaveActionBarPosition()
+		else
+			ShowActionBar()
+		end
+	end
 end
 	
-function SetAlignment(dropdownbutton, arg1, arg2, checked)
-	local options = EasyRider.db.global.actionBar or {}
-
-	options.alignment = arg1
-	EasyRider.db.global.actionBar = options
-	ShowActionBar()
-end
-
 function ButtonOnLoad(button)
 	button:RegisterForClicks("AnyUp")
 end
@@ -338,12 +347,10 @@ function ButtonOnDragStop(button)
 
 	EasyRiderFrame:StopMovingOrSizing()
 
-	options.position = {}
-	options.position.XPos = EasyRiderFrame:GetLeft()
-	options.position.YPos = EasyRiderFrame:GetBottom()
 	options.alignment = ALIGNMENT_NONE
 
 	EasyRider.db.global.actionBar = options
+	SaveActionBarPosition()
 end
 
 function FrameOnLoad(frame)
@@ -351,6 +358,15 @@ function FrameOnLoad(frame)
 end
 
 
+function SaveActionBarPosition()
+	local options = EasyRider.db.global.actionBar or {}
+
+	options.position = {}
+	options.position.XPos = EasyRiderFrame:GetLeft()
+	options.position.YPos = EasyRiderFrame:GetBottom()
+
+	EasyRider.db.global.actionBar = options
+end
 
   -- menu create function
 function EasyRiderDropDownMenu_Initialize(self, level)
@@ -385,34 +401,36 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 		info.hasArrow = true;
 		info.notCheckable = true;
 		info.text = "Orientation";
-		info.value = {
-			["Level1_Key"] = "Orientation";
-		}
+		info.value = "OrientationMenu"
 		UIDropDownMenu_AddButton(info, level);
 		
 		info = UIDropDownMenu_CreateInfo();
 		info.hasArrow = true;
-		info.notCheckable = true;
-		
-		info.text = "Alignment";
-		
-		info.value = {
-			["Level1_Key"] = "Alignment";
-		}
+		info.notCheckable = true;		
+		info.text = "Alignment";		
+		info.value = "AlignmentMenu"
 		UIDropDownMenu_AddButton(info, level);
+
+		info = UIDropDownMenu_CreateInfo();
+        info.text         = CLOSE        
+        info.checked      = nil
+        info.notCheckable = true
+		info.func         = function() 
+			CloseDropDownMenus() 
+		end
+        UIDropDownMenu_AddButton(info, level)
 	end
 	if level == 2 then
-		local Level1_Key = UIDROPDOWNMENU_MENU_VALUE["Level1_Key"];
-
-		if Level1_Key == "Orientation" then
+		if UIDROPDOWNMENU_MENU_VALUE == "OrientationMenu" then
 			info = UIDropDownMenu_CreateInfo();
 			info.hasArrow = false;
 			info.notCheckable = false;
 			info.text = "Horizontal";
-			info.checked = options.orientation == ORIENTATION_HORIZONTAL
-			info.func = SetOrientation
-			info.value = ORIENTATION_HORIZONTAL
-			info.arg1 = ORIENTATION_HORIZONTAL
+			info.checked = options.orientation and options.orientation == ORIENTATION_HORIZONTAL
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarOrientation(ORIENTATION_HORIZONTAL) 
+			end
 			UIDropDownMenu_AddButton(info, level);
 			
 			info = UIDropDownMenu_CreateInfo();
@@ -420,30 +438,33 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.notCheckable = false;
 			info.text = "Vertical";
 			info.checked = not options.orientation or options.orientation == ORIENTATION_VERTICAL
-			info.func = SetOrientation
-			info.value = ORIENTATION_VERTICAL
-			info.arg1 = ORIENTATION_VERTICAL
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarOrientation(ORIENTATION_VERTICAL) 
+			end
 			UIDropDownMenu_AddButton(info, level);
 		
-		elseif Level1_Key == "Alignment" then
+		elseif UIDROPDOWNMENU_MENU_VALUE == "AlignmentMenu" then
 			info = UIDropDownMenu_CreateInfo();
 			info.hasArrow = false;
 			info.notCheckable = false;
 			info.text = "None";
-			info.checked = options.alignment == ALIGNMENT_NONE
-			info.func = SetAlignment
-			info.value = ALIGNMENT_NONE
-			info.arg1 = ALIGNMENT_NONE
+			info.checked = options.alignment and options.alignment == ALIGNMENT_NONE
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarAlignment(ALIGNMENT_NONE) 
+			end
 			UIDropDownMenu_AddButton(info, level);
 			
 			info = UIDropDownMenu_CreateInfo();
 			info.hasArrow = false;
 			info.notCheckable = false;
 			info.text = "Left";
-			info.checked = options.alignment == ALIGNMENT_LEFT
-			info.func = SetAlignment
-			info.value = ALIGNMENT_LEFT
-			info.arg1 = ALIGNMENT_LEFT
+			info.checked = options.alignment and options.alignment == ALIGNMENT_LEFT
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarAlignment(ALIGNMENT_LEFT) 
+			end
 			UIDropDownMenu_AddButton(info, level);
 			
 			info = UIDropDownMenu_CreateInfo();
@@ -451,9 +472,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.notCheckable = false;
 			info.text = "Right";
 			info.checked = not options.alignment or options.alignment == ALIGNMENT_RIGHT
-			info.func = SetAlignment			
-			info.value = ALIGNMENT_RIGHT
-			info.arg1 = ALIGNMENT_RIGHT
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarAlignment(ALIGNMENT_RIGHT) 
+			end
 			UIDropDownMenu_AddButton(info, level);		
 		end
 	end
@@ -486,6 +508,10 @@ function CreateActionBar()
 
 	frame:RegisterForDrag("LeftButton")
 
+	local dropdown = CreateFrame("Frame", "EasyRiderDropDownMenu", UIParent, "UIDropDownMenuTemplate");
+	--UIDropDownMenu_Initialize(dropdown, Test1_DropDown_Initialize, "MENU");
+	UIDropDownMenu_Initialize(dropdown, EasyRiderDropDownMenu_Initialize, "MENU");
+
 	--EasyRider.actionBar = frame
 end
 
@@ -517,8 +543,10 @@ function ShowActionBar()
 	
 	if options.orientation == ORIENTATION_HORIZONTAL then
 		frame:SetWidth(10 + 38 * count);
+		frame:SetHeight(40)
 	else
 		frame:SetHeight(10 + 38 * count);
+		frame:SetWidth(40)
 	end
 
 	frame:ClearAllPoints();
