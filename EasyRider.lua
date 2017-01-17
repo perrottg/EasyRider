@@ -1,5 +1,7 @@
 EasyRider = LibStub("AceAddon-3.0"):NewAddon("EasyRider", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0" );
 
+local L = LibStub("AceLocale-3.0"):GetLocale("EasyRider")
+
 local buttonsInitialised = false
 local buttons = {}
 local mountDatastore = {}
@@ -30,36 +32,43 @@ local ALIGNMENT_NONE = 1
 local ALIGNMENT_LEFT = 2
 local ALIGNMENT_RIGHT = 3
 
+local lastCategorySummoned = 0
 local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
-	title = "Summon Ground Mount",
+	title = L["Summon Ground Mount"],
 	icon = "Interface\\Icons\\Ability_mount_ridinghorse",
-	description = "Summons and dismisses a random ground mount."
+	description = format("%s %s", L["Summons and dismisses the preferred ground mount."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
 }
 buttonInfo[CATEGORY_FLY] = {
-	title = "Summon Flying Mount",
+	title = L["Summon Flying Mount"],
 	icon = "Interface\\Icons\\Ability_mount_goldengryphon",	
-	description = "Summons and dismisses a random flying mount."
+	description = format("%s %s", L["Summons and dismisses the preferred flying mount."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
 }
 buttonInfo[CATEGORY_SURFACE] = {
-	title = "Summon Surface Mount",
+	title = L["Summon Surface Mount"],
 	icon = "Interface\\Icons\\Ability_mount_waterstridermount",
-	description = "Summons and dismisses a random mount capable of walking on water."
-}
+	description = format("%s %s", L["Summons and dismisses the preferred mount capable of walking on water."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])		
+}	
 buttonInfo[CATEGORY_AQUATIC] = {
-	title = "Summon Aquatic Mount",
+	title = L["Summon Aquatic Mount"],
 	icon = "Interface\\Icons\\Ability_mount_seahorse",
-	description = "Summons and  dismisses a random mount capable of swimming in water."
+	description = format("%s %s", L["Summons and  dismisses the preferred aquatic mount."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])	
 }
 buttonInfo[CATEGORY_PASSENGER] = {
-	title = "Summon Passenger Mount", 
+	title = L["Summon Passenger Mount"], 
 	icon = "Interface\\Icons\\Ability_mount_rocketmount2",
-	description = "Summons and dismisses a random mount capable of transporting a passenger."
+	description = format("%s %s", L["Summons and dismisses the preferred mount capable of transporting a passenger."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
 }
 buttonInfo[CATEGORY_VENDOR] = {
-	title = "Summon Vendor Mount",
+	title = L["Summon Vendor Mount"],
 	icon = "Interface\\Icons\\Ability_mount_mammoth_brown_3seater",
-	description = "Summons and dismisses a random mount with a vendor."
+	description = format("%s %s", L["Summons and dismisses the preferred mount with a vendor."], 
+		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
 }
 
 local red = { r = 1.0, g = 0.2, b = 0.2 }
@@ -94,6 +103,51 @@ local function IndexMount(mount, category)
 		mountDatastore.categoryIndex[category][tostring(true)][count +1] = index
 	end
 end 
+
+local function CaptureMounts()
+	local collectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
+	local notCollectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
+	
+	local mountList = {}
+
+	mountDatastore.allMounts = {}
+	mountDatastore.categoryIndex = {}
+	
+	C_MountJournal.SetAllSourceFilters(true);
+	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, true)
+	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, true)
+	
+	local numMounts = C_MountJournal.GetNumDisplayedMounts()
+
+	for index = 1, numMounts do		
+		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetDisplayedMountInfo(index)
+		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetDisplayedMountInfoExtra(index);
+		local index = tostring(spellID)
+
+		local mount = {}
+		local mountTyped = false
+
+		mount.name = creatureName
+		mount.spellID = spellID
+		mount.mountID = mountID
+		mount.icon = icon
+		mount.creatureID = creatureID
+		mount.mountType = mountType 
+		mount.sourceType = sourceType
+		mount.isFactionSpecific = isFactionSpecific
+		mount.faction = faction
+		mount.isSelfMount = isSelfMount
+		
+		mountList[spellID] = mount
+			
+	end
+	
+	EasyRider.db.global.mountList = mountList
+
+	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFlag)
+	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, notCollectedFlag)
+end
+
 
 local function CacheMounts()
 	local collectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
@@ -166,7 +220,7 @@ local function GetRandomMount(category, favoriteOnly )
 	end
 
 	if not mountDatastore.categoryIndex[category] or #mountDatastore.categoryIndex[category][tostring(favoriteOnly)] == 0 then
-		EasyRider:Print("NO MOUNTS!")
+		--EasyRider:Print("NO MOUNTS!")
 		return nil
 	end
 
@@ -178,22 +232,21 @@ local function GetRandomMount(category, favoriteOnly )
 end
 
 
-function EasyRider_InitButtons()
-	if buttonsInitialised then
-		return
-	end
+--function EasyRider_InitButtons()
+--	if buttonsInitialised then
+--		return
+--	end
 
-	for index = 1, TOTAL_CATEGORIES do
-		local button = CreateFrame("Button", "EasyRider_Button"..index, EasyRiderFrame, "EasyRiderButtonTemplate");
-		button.category = index
-		buttons[index] = button
-	end
+--	for index = 1, TOTAL_CATEGORIES do
+--		local button = CreateFrame("Button", "EasyRider_Button"..index, EasyRiderFrame, "EasyRiderButtonTemplate");
+--		button.category = index
+--		buttons[index] = button
+--	end
 
-	buttonsInitialised = true;
-end
+--	buttonsInitialised = true;
+--end
 
-function EasyRider:ShowPopUpMenu(button)
-	GameTooltip:Hide()
+function EasyRider:ShowPopUpMenu(button)	
 	ToggleDropDownMenu(1, nil, EasyRiderDropDownMenu, button, 0, 0);
 end
 
@@ -218,22 +271,24 @@ function EasyRider:ShowTooltip(category)
 
 	if preferred[category] then 
 		name, _, icon = GetSpellInfo(preferred[category])
-		tooltip:AddLine(format("|cffffffffPreferred Mount:|r |cff33ff99%s|r", name));
+		tooltip:AddLine(format("|cffffffff%s:|r |cff33ff99%s|r", L["Preferred Mount"], name))
 	else
-		tooltip:AddLine("|cffffffffPreferred Mount:|r not set");
+		tooltip:AddLine(format("|cffffffff%s:|r %s", L["Preferred Mount"], L["not set"]))
 	end
 
 	tooltip:AddLine(" ");
-	tooltip:AddLine("|cffffffffShift-Click:|r Summon preferred mount");
-	tooltip:AddLine("|cffffffffAlt+Left-Click:|r Summon random favorite mount");
-	tooltip:AddLine("|cffffffffCtrl+Left-Click:|r Set active mount as preferred");
-	tooltip:AddLine("|cffffffffRight-Click:|r Open options  menu");
+	tooltip:AddLine(format("|cffffffff%s:|r %s", L["Shift-Click"], L["Summon random mount"]))
+	tooltip:AddLine(format("|cffffffff%s:|r %s", L["Alt+Left-Click"], L["Summon a favorite mount"]))
+	tooltip:AddLine(format("|cffffffff%s:|r %s", L["Ctrl+Left-Click"], L["Set current mount as preferred"]))
+	tooltip:AddLine(format("|cffffffff%s:|r %s", L["Right-Click"], L["Open options  menu"]))
     tooltip:Show();
 end
 
 function SetPreferredMount(category)
-	if IsMounted() then
-		local preferred = EasyRider.db.char.preferredMounts or {}
+	local preferred = EasyRider.db.char.preferredMounts or {}
+
+	if IsMounted() then		
+		-- look for  active mount spell and set the preferred moount if found
 		local index = 1
 		local mount = nil
 		repeat 
@@ -242,12 +297,15 @@ function SetPreferredMount(category)
 			if mount then
 				preferred[category] = spellID
 				EasyRider.db.char.preferredMounts = preferred
-				EasyRider:Print("Preferred mount set to "..mount.name)
 				break
 			end
 			index = index+1
 		until not name
+	else
+		-- Clear the preferred mount
+		preferred[category] = nil
 	end	
+
 end
 
 
@@ -255,30 +313,45 @@ function SummonMount(category)
 	local preferred = EasyRider.db.char.preferredMounts or {}
 	local  mount = nil
 	
+	if category == lastCategorySummoned and IsMounted() then
+		Dismount()
+		return
+	end
+
 	if IsAltKeyDown() then
-		EasyRider:Print("Request to summon random favorite")
 		mount = GetRandomMount(category, true)
 	elseif IsShiftKeyDown() then
-		mount = GetMountBySpellID(preferred[category])
-	else	  
-		mount = GetRandomMount(category)
+		mount = GetRandomMount(category)		
+	else
+		if preferred[category] then
+			mount = GetMountBySpellID(preferred[category])
+		end
+		if not mount then
+			mount = GetRandomMount(category, true)
+		end
+		if not mount then
+			mount = GetRandomMount(category)
+		end
 	end		
 	
 	if mount then
 		C_MountJournal.SummonByID(mount.mountID)
-	else
-		EasyRider:Print("No mount found!")
 	end
+
+	lastCategorySummoned = category
 end
 
 function ButtonOnClick(actionButton, mouseButton)
 	if mouseButton == "LeftButton" then
 		if IsControlKeyDown() then
+			GameTooltip:Hide()
 			SetPreferredMount(actionButton.category)
+			EasyRider:ShowTooltip(actionButton.category)
 		else
 			SummonMount(actionButton.category)	
 		end
 	elseif mouseButton == "RightButton" then
+		GameTooltip:Hide()
 		EasyRider:ShowPopUpMenu(actionButton)
 	end	
 end
@@ -379,39 +452,39 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 	 
 	if level == 1 then
 
-		info = UIDropDownMenu_CreateInfo();
-		info.hasArrow = false;
-		info.notCheckable = false;
-		info.text = "Auto Hide";
+		info = UIDropDownMenu_CreateInfo()
+		info.hasArrow = false
+		info.notCheckable = false
+		info.text = L["Auto Hide"]
 		info.checked = false
 		info.checked = not options.alwaysShow
 		info.func = ToggleAutoHide 
-		UIDropDownMenu_AddButton(info, level);
+		UIDropDownMenu_AddButton(info, level)
 		
-		info = UIDropDownMenu_CreateInfo();
-		info.hasArrow = false;
-		info.notCheckable = false;
-		info.text = "Locked";
+		info = UIDropDownMenu_CreateInfo()
+		info.hasArrow = false
+		info.notCheckable = false
+		info.text = L["Locked"]
 		info.checked = false
 		info.checked = options.locked
 		info.func = ToggleLocked 
-		UIDropDownMenu_AddButton(info, level);
+		UIDropDownMenu_AddButton(info, level)
 
-		info = UIDropDownMenu_CreateInfo();
-		info.hasArrow = true;
-		info.notCheckable = true;
-		info.text = "Orientation";
+		info = UIDropDownMenu_CreateInfo()
+		info.hasArrow = true
+		info.notCheckable = true
+		info.text = L["Orientation"]
 		info.value = "OrientationMenu"
-		UIDropDownMenu_AddButton(info, level);
+		UIDropDownMenu_AddButton(info, level)
 		
-		info = UIDropDownMenu_CreateInfo();
-		info.hasArrow = true;
-		info.notCheckable = true;		
-		info.text = "Alignment";		
-		info.value = "AlignmentMenu"
-		UIDropDownMenu_AddButton(info, level);
+		info = UIDropDownMenu_CreateInfo()
+		info.hasArrow = true
+		info.notCheckable = true
+		info.text = L["Anchor"]		
+		info.value = "AnchorMenu"
+		UIDropDownMenu_AddButton(info, level)
 
-		info = UIDropDownMenu_CreateInfo();
+		info = UIDropDownMenu_CreateInfo()
         info.text         = CLOSE        
         info.checked      = nil
         info.notCheckable = true
@@ -422,61 +495,61 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 	end
 	if level == 2 then
 		if UIDROPDOWNMENU_MENU_VALUE == "OrientationMenu" then
-			info = UIDropDownMenu_CreateInfo();
-			info.hasArrow = false;
-			info.notCheckable = false;
-			info.text = "Horizontal";
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Horizontal"]
 			info.checked = options.orientation and options.orientation == ORIENTATION_HORIZONTAL
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarOrientation(ORIENTATION_HORIZONTAL) 
 			end
-			UIDropDownMenu_AddButton(info, level);
+			UIDropDownMenu_AddButton(info, level)
 			
-			info = UIDropDownMenu_CreateInfo();
-			info.hasArrow = false;
-			info.notCheckable = false;
-			info.text = "Vertical";
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Vertical"]
 			info.checked = not options.orientation or options.orientation == ORIENTATION_VERTICAL
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarOrientation(ORIENTATION_VERTICAL) 
 			end
-			UIDropDownMenu_AddButton(info, level);
+			UIDropDownMenu_AddButton(info, level)
 		
-		elseif UIDROPDOWNMENU_MENU_VALUE == "AlignmentMenu" then
-			info = UIDropDownMenu_CreateInfo();
-			info.hasArrow = false;
-			info.notCheckable = false;
-			info.text = "None";
+		elseif UIDROPDOWNMENU_MENU_VALUE == "AnchorMenu" then
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["None"]
 			info.checked = options.alignment and options.alignment == ALIGNMENT_NONE
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_NONE) 
 			end
-			UIDropDownMenu_AddButton(info, level);
+			UIDropDownMenu_AddButton(info, level)
 			
-			info = UIDropDownMenu_CreateInfo();
-			info.hasArrow = false;
-			info.notCheckable = false;
-			info.text = "Left";
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Left"]
 			info.checked = options.alignment and options.alignment == ALIGNMENT_LEFT
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_LEFT) 
 			end
-			UIDropDownMenu_AddButton(info, level);
+			UIDropDownMenu_AddButton(info, level)
 			
-			info = UIDropDownMenu_CreateInfo();
-			info.hasArrow = false;
-			info.notCheckable = false;
-			info.text = "Right";
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Right"]
 			info.checked = not options.alignment or options.alignment == ALIGNMENT_RIGHT
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_RIGHT) 
 			end
-			UIDropDownMenu_AddButton(info, level);		
+			UIDropDownMenu_AddButton(info, level)
 		end
 	end
 end

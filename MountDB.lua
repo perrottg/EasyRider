@@ -15,6 +15,7 @@ local mountDB = {
 	},	
 	[55531] = {									-- Mechano-hog
 		[mountTypes.PASSENGER] = true,
+		passengers = 1,
 	},
 	[60424] = {									-- Mekgineer's Chopper
 		[mountTypes.PASSENGER] = true,
@@ -22,22 +23,28 @@ local mountDB = {
 	[61425] = {									-- Traveler's Tundra Mammoth (alliance)
 		[mountTypes.PASSENGER] = true,
 		[mountTypes.VENDOR] = true,
+		passengers = 2,
 	},
 	[61447] = {									-- Traveler's Tundra Mammoth (horde)
 		[mountTypes.PASSENGER] = true,
 		[mountTypes.VENDOR] = true,
+		passengers = 2,
 	},
 	[61465] = {									-- Grand Black War Mammoth (alliance)
 		[mountTypes.PASSENGER] = true,
+		passengers = 2,		 
 	},
 	[61467] = {									-- Grand Black War Mammoth (horde)
 		[mountTypes.PASSENGER] = true,
+		passengers = 2,
 	},
 	[61469] = {									-- Grand Ice Mammoth (horde)
 		[mountTypes.PASSENGER] = true,
+		passengers = 2,
 	},
 	[61470] = {									-- Grand Ice Mammoth (alliance)
 		[mountTypes.PASSENGER] = true,
+		passengers = 2,
 	},
 	[64731] = {									-- Sea Turtle
 		[mountTypes.AQUATIC] = true,
@@ -47,9 +54,11 @@ local mountDB = {
 	},
 	[75973] = {									-- X-53 Touring Rocket
 		[mountTypes.PASSENGER] = true,
+		passengers = 1,
 	},
 	[93326] = {									-- Sandstone Drake
 		[mountTypes.PASSENGER] = true,
+		passengers = 1,
 	},
 	[98718] = {									-- Subdued Seahorse
 		[mountTypes.AQUATIC] = true,
@@ -59,6 +68,12 @@ local mountDB = {
 	},
 	[121820] = {								-- Obsidian Nightwing
 		[mountTypes.PASSENGER] = true,
+		passengers = 1,
+	},											
+	[122708] = {								-- Grand Expedition Yak
+		[mountTypes.VENDOR] = true,
+		[mountTypes.PASSENGER] = true,
+		passengers = 2,
 	},
 	[127271] = {								-- Crimson Water Strider 
 		[mountTypes.SURFACE] = true,
