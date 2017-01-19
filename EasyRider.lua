@@ -403,17 +403,20 @@ function ButtonOnLeave(button)
 end
 
 function ButtonOnDragStart(button)
+	EasyRider:Print("ButtonOnDragStart")
 	local options = EasyRider.db.global.actionBar or {}
+	local frame = EasyRider.actionBar
 
 	if not options.locked then
-		EasyRiderFrame:StartMoving()
+		frame:StartMoving()
 	end
 end
 
 function ButtonOnDragStop(button)
 	local options = EasyRider.db.global.actionBar or {}
+	local frame = EasyRider.actionBar
 
-	EasyRiderFrame:StopMovingOrSizing()
+	frame:StopMovingOrSizing()
 
 	options.alignment = ALIGNMENT_NONE
 
@@ -423,10 +426,11 @@ end
 
 function SaveActionBarPosition()
 	local options = EasyRider.db.global.actionBar or {}
+	local frame = EasyRider.actionBar
 
 	options.position = {}
-	options.position.XPos = EasyRiderFrame:GetLeft()
-	options.position.YPos = EasyRiderFrame:GetBottom()
+	options.position.XPos = frame:GetLeft()
+	options.position.YPos = frame:GetBottom()
 
 	EasyRider.db.global.actionBar = options
 end
@@ -567,10 +571,12 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 end
 
 function CreateActionBar()
-	--local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
-	local frame = getglobal("EasyRiderFrame")
+	local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
 	local options = EasyRider.db.global.actionBar or {}
 	local preferred = EasyRider.db.char.preferredMounts or {}
+
+	frame:SetMovable(true)
+	frame:SetToplevel(true)
 	
 
 	for index = 1, TOTAL_CATEGORIES do
@@ -606,21 +612,21 @@ function CreateActionBar()
 		buttons[index] = button
 	end
 
+	EasyRider.actionBar = frame
+
 	local dropdown = CreateFrame("Frame", "EasyRiderDropDownMenu", UIParent, "UIDropDownMenuTemplate");
 	UIDropDownMenu_Initialize(dropdown, EasyRiderDropDownMenu_Initialize, "MENU");
 end
 
 function EasyRider:ShowActionBar()
 	local count = 0
-	local frame = getglobal("EasyRiderFrame")
+	local frame = EasyRider.actionBar
 	local options = EasyRider.db.global.actionBar or {}
 
 	for index = 1, TOTAL_CATEGORIES do		
 		local button = buttons[index]
 		local info = buttonInfo[index]
 		
-		--_G[button:GetName().."Icon"]:SetTexture(info.icon);
-
 		button:ClearAllPoints();
 
 		if options.orientation == ORIENTATION_HORIZONTAL then
@@ -664,7 +670,7 @@ function EasyRider:ShowActionBar()
 end
 
 local function HideActionBar()
-	local frame = getglobal("EasyRiderFrame")
+	local frame = EasyRider.actionBar
 	frame:Hide()
 end
 
