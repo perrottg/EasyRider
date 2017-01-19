@@ -10,13 +10,13 @@
 			<OnLoad>
 				self:RegisterForClicks("AnyUp");
 			</OnLoad>
-			<!--<OnClick>				
-			</OnClick>-->
+			<OnClick>				
+			</OnClick>
 			<OnEnter>
-				<!--CraftBar_MouseOver(self);-->
+				CraftBar_MouseOver(self);
 			</OnEnter>
 			<OnLeave>
-				<!--CraftBar_MouseOut(self);-->
+				CraftBar_MouseOut(self);
 			</OnLeave>
 		</Scripts>
 	</Button>

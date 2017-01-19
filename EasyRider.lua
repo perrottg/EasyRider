@@ -32,6 +32,10 @@ local ALIGNMENT_NONE = 1
 local ALIGNMENT_LEFT = 2
 local ALIGNMENT_RIGHT = 3
 
+local inCombat = false
+local inPetBattle = false
+local inVehicle = false
+
 local lastCategorySummoned = 0
 local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
@@ -220,7 +224,6 @@ local function GetRandomMount(category, favoriteOnly )
 	end
 
 	if not mountDatastore.categoryIndex[category] or #mountDatastore.categoryIndex[category][tostring(favoriteOnly)] == 0 then
-		--EasyRider:Print("NO MOUNTS!")
 		return nil
 	end
 
@@ -230,21 +233,6 @@ local function GetRandomMount(category, favoriteOnly )
 
 	return mountDatastore.allMounts[spellID] 
 end
-
-
---function EasyRider_InitButtons()
---	if buttonsInitialised then
---		return
---	end
-
---	for index = 1, TOTAL_CATEGORIES do
---		local button = CreateFrame("Button", "EasyRider_Button"..index, EasyRiderFrame, "EasyRiderButtonTemplate");
---		button.category = index
---		buttons[index] = button
---	end
-
---	buttonsInitialised = true;
---end
 
 function EasyRider:ShowPopUpMenu(button)	
 	ToggleDropDownMenu(1, nil, EasyRiderDropDownMenu, button, 0, 0);
@@ -336,6 +324,8 @@ function SummonMount(category)
 	
 	if mount then
 		C_MountJournal.SummonByID(mount.mountID)
+	else
+		EasyRider:Print("NO mount!")
 	end
 
 	lastCategorySummoned = category
@@ -376,7 +366,7 @@ function SetActionBarOrientation(orientation)
 	if options.orientation ~= orientation then
 		options.orientation = orientation
 		EasyRider.db.global.actionBar = options
-		ShowActionBar()
+		EasyRider:ShowActionBar()
 	end
 end
 
@@ -390,15 +380,11 @@ function SetActionBarAlignment(alignment)
 		if alignment == ALIGNMENT_NONE  and not options.position then
 			SaveActionBarPosition()
 		else
-			ShowActionBar()
+			EasyRider:ShowActionBar()
 		end
 	end
 end
 	
-function ButtonOnLoad(button)
-	button:RegisterForClicks("AnyUp")
-end
-
 function ButtonOnEnter(button)
 	EasyRider:ShowTooltip(button.category)
 end
@@ -425,11 +411,6 @@ function ButtonOnDragStop(button)
 	EasyRider.db.global.actionBar = options
 	SaveActionBarPosition()
 end
-
-function FrameOnLoad(frame)
-	--frame:RegisterForClicks("AnyUp")
-end
-
 
 function SaveActionBarPosition()
 	local options = EasyRider.db.global.actionBar or {}
@@ -558,43 +539,50 @@ function CreateActionBar()
 	--local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
 	local frame = getglobal("EasyRiderFrame")
 	local options = EasyRider.db.global.actionBar or {}
+	local preferred = EasyRider.db.char.preferredMounts or {}
 	
 
 	for index = 1, TOTAL_CATEGORIES do
-		local button = CreateFrame("Button", "EasyRider_Button"..index, EasyRiderFrame, "EasyRiderButtonTemplate");
-		--local button = CreateFrame("Button", "EasyRiderActionBar_Button"..index, frame, "SecureActionButtonTemplate");
-		local info = buttonInfo[index]
+		local button = CreateFrame("Button", "EasyRider_Button"..index, frame, "SecureActionButtonTemplate, ActionButtonTemplate")
+		button:SetSize(37, 37)
 
 		button.category = index
+		button:RegisterForClicks("AnyUp")
+		button:SetMotionScriptsWhileDisabled(true)
+    
+		button:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
+		button:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
+		button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+		--item:SetDisabledTexture(buttonInfo[index].icon)
+		--do local tex = button:GetNormalTexture()
+		--	tex:ClearAllPoints()
+		--	tex:SetPoint("CENTER", 0, -1)
+		--	tex:SetSize(64, 64)
+		--end
+    
+		
+		--button.icon = button:CreateTexture("$parentIconTexture", "ARTWORK")
+		button.icon:SetTexture(buttonInfo[index].icon)
+    
 		button:SetScript('OnLoad', ButtonOnLoad)
 		button:SetScript('OnClick', ButtonOnClick)
 		button:SetScript('OnEnter', ButtonOnEnter)
-		button:SetScript('OnLeave', ButtonOnLeave)button:RegisterForDrag("LeftButton")
+		button:SetScript('OnLeave', ButtonOnLeave)
 		button:SetScript("OnDragStart", ButtonOnDragStart)
 		button:SetScript("OnDragStop", ButtonOnDragStop)
-
-		--_G["EasyRiderActionBar_Button"..index.."Icon"]:SetTexture(info.icon);
-		_G[button:GetName().."Icon"]:SetTexture(info.icon);
+		button:RegisterForDrag("LeftButton")
 
 		buttons[index] = button
 	end
 
-	frame:RegisterForDrag("LeftButton")
-
 	local dropdown = CreateFrame("Frame", "EasyRiderDropDownMenu", UIParent, "UIDropDownMenuTemplate");
-	--UIDropDownMenu_Initialize(dropdown, Test1_DropDown_Initialize, "MENU");
 	UIDropDownMenu_Initialize(dropdown, EasyRiderDropDownMenu_Initialize, "MENU");
-
-	--EasyRider.actionBar = frame
 end
 
-function ShowActionBar()
+function EasyRider:ShowActionBar()
 	local count = 0
-	--local frame = EasyRider.actionBar
 	local frame = getglobal("EasyRiderFrame")
 	local options = EasyRider.db.global.actionBar or {}
-
-	--frame:Hide()
 
 	for index = 1, TOTAL_CATEGORIES do		
 		local button = buttons[index]
@@ -611,7 +599,7 @@ function ShowActionBar()
 		end
 
 		button:Show();
-		count = count + 1;       
+		count = count + 1;   
 	end
 	
 	if options.orientation == ORIENTATION_HORIZONTAL then
@@ -636,12 +624,11 @@ function ShowActionBar()
 		end
 	end
 
-	frame:RegisterForDrag("LeftButton")
-
-	frame:Show()	
+	UpdateActionBarState()
+	frame:Show()		
 end
 
-function HideActionBar()
+local function HideActionBar()
 	local frame = getglobal("EasyRiderFrame")
 	frame:Hide()
 end
@@ -649,59 +636,78 @@ end
 local function DelayedInit()
 	CacheMounts()
 	CreateActionBar()
-	ShowActionBar()
+	EasyRider:ShowActionBar()
+end
+
+function UpdateActionBarState()
+	local usable = IsOutdoors() and not IsIndoors() and not  inCombat and not inVehicle and not inPetBattle	
+	local options = EasyRider.db.global.actionBar or {}
+
+
+	for index = 1, TOTAL_CATEGORIES do
+		local button = buttons[index]
+
+		if button then
+			local icon = button.icon;
+			local normalTexture = button.NormalTexture;
+			
+			if usable and (index ~= CATEGORY_AQUATIC or IsSwimming())  then
+				icon:SetVertexColor(1.0, 1.0, 1.0);
+				normalTexture:SetVertexColor(1.0, 1.0, 1.0);
+				button:Enable()
+			else
+				icon:SetVertexColor(0.4, 0.4, 0.4);
+				normalTexture:SetVertexColor(1.0, 1.0, 1.0);
+				button:Disable()
+			end
+		end
+	end	
+
+	if not options.alwaysShow then
+		if inVehicle or inPetBattle then
+			HideActionBar()
+		else
+			ShowActionBar()
+		end
+	end
 end
 
 function EasyRider:PET_BATTLE_OPENING_START()
-	local options = EasyRider.db.global.actionBar or {}
-
-	if not options.alwaysShow then 
-		HideActionBar()
-	end
+	inPetBattle = true
+	UpdateActionBarState()
 end
 
 function EasyRider:PET_BATTLE_CLOSE()
-	local options = EasyRider.db.global.actionBar or {}
-	
-	if not options.alwaysShow then
-		ShowActionBar()
-	end
+	inPetBattle = false
+	UpdateActionBarState()
 end
 
 function EasyRider:PLAYER_REGEN_ENABLED()
-	local options = EasyRider.db.global.actionBar or {}
-
-	if not options.alwaysShow then
-		ShowActionBar()
-	end
+	inCombat = false
+	UpdateActionBarState()
 end
 
 function EasyRider:PLAYER_REGEN_DISABLED()
-	local options = EasyRider.db.global.actionBar or {}
-
-	if not options.alwaysShow then 
-		HideActionBar()
-	end
+	inCombat = true
+	UpdateActionBarState()
 end
 
 function EasyRider:UNIT_ENTERED_VEHICLE(event, arg1)
 	if arg1 == "player" then
-		local options = EasyRider.db.global.actionBar or {}
-
-		if not options.alwaysShow then 
-			HideActionBar()
-		end
+		inVehicle = true
+		UpdateActionBarState()
 	end
 end
 
 function EasyRider:UNIT_EXITED_VEHICLE(event, arg1)
 	if arg1 == "player" then
-		local options = EasyRider.db.global.actionBar or {}
-
-		if not options.alwaysShow then
-			ShowActionBar()
-		end
+		inVehicle = false
+		UpdateActionBarState()
 	end
+end
+
+function EasyRider:ACTIONBAR_UPDATE_USABLE()
+	EasyRider:ScheduleTimer(UpdateActionBarState, 1)
 end
 
 function EasyRider:OnInitialize()	
@@ -716,6 +722,7 @@ function EasyRider:OnEnable()
 	EasyRider:RegisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
+	EasyRider:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
 end
 
 function EasyRider:OnDisable()
@@ -725,5 +732,6 @@ function EasyRider:OnDisable()
 	EasyRider:UnregisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:UnregisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:UnregisterEvent("UNIT_EXITED_VEHICLE")
+	EasyRider:UnregisterEvent("ACTIONBAR_UPDATE_USABLE")
 end
 
