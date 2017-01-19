@@ -39,5 +39,7 @@ L["Anchor"] = true
 L["Horizontal"] = true
 L["Vertical"] = true
 L["None"] = true
+L["Top"] = true
+L["Bottom"] = true
 L["Left"] = true
 L["Right"] = true

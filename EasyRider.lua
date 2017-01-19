@@ -29,6 +29,8 @@ local TOTAL_CATEGORIES = 6
 local ORIENTATION_HORIZONTAL = 1
 local ORIENTATION_VERTICAL = 2
 local ALIGNMENT_NONE = 1
+local ALIGNMENT_TOP = 4
+local ALIGNMENT_BOTTOM = 5
 local ALIGNMENT_LEFT = 2
 local ALIGNMENT_RIGHT = 3
 
@@ -375,6 +377,13 @@ function SetActionBarAlignment(alignment)
 
 	if options.alignment ~= alignment then 
 		options.alignment = alignment
+
+		if alignment == ALIGNMENT_TOP or alignment == ALIGNMENT_BOTTOM then
+			options.orientation = ORIENTATION_HORIZONTAL
+		else
+			options.orientation = ORIENTATION_VERTICAL
+		end
+		
 		EasyRider.db.global.actionBar = options
 
 		if alignment == ALIGNMENT_NONE  and not options.position then
@@ -513,6 +522,28 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info = UIDropDownMenu_CreateInfo()
 			info.hasArrow = false
 			info.notCheckable = false
+			info.text = L["Top"]
+			info.checked = options.alignment and options.alignment == ALIGNMENT_TOP
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarAlignment(ALIGNMENT_TOP) 
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Bottom"]
+			info.checked = options.alignment and options.alignment == ALIGNMENT_BOTTOM
+			info.func = function() 
+				CloseDropDownMenus()
+				SetActionBarAlignment(ALIGNMENT_BOTTOM) 
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
 			info.text = L["Left"]
 			info.checked = options.alignment and options.alignment == ALIGNMENT_LEFT
 			info.func = function() 
@@ -617,7 +648,11 @@ function EasyRider:ShowActionBar()
 		y = options.position.YPos
 		frame:SetPoint("BOTTOMLEFT", x, y)
 	else
-		if options.alignment and options.alignment == ALIGNMENT_LEFT then
+		if options.alignment and options.alignment == ALIGNMENT_TOP then
+			frame:SetPoint("TOP")
+		elseif options.alignment and options.alignment == ALIGNMENT_BOTTOM  then 
+			frame:SetPoint("BOTTOM")
+		elseif options.alignment and options.alignment == ALIGNMENT_LEFT then
 			frame:SetPoint("LEFT")
 		else
 			frame:SetPoint("RIGHT")
