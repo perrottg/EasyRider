@@ -794,13 +794,6 @@ local function HideActionBar()
 	frame:Hide()
 end
 
-local function DelayedInit()
-	CacheMounts()
-	CreateActionBar()
-	EasyRider:ShowActionBar()
-	UpdateActionBarState()
-end
-
 function UpdateActionBarState()
 	local usable = IsOutdoors() and not IsIndoors() and not  inCombat and not inVehicle and not inPetBattle	
 	local options = EasyRider.db.global.actionBar or {}
@@ -874,7 +867,8 @@ end
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
-	EasyRider:ScheduleTimer(DelayedInit, 3)
+	EasyRider:ScheduleTimer(CacheMounts, 3)
+	CreateActionBar()	
 end
 
 function EasyRider:OnEnable()	
@@ -885,6 +879,8 @@ function EasyRider:OnEnable()
 	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
 	EasyRider:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
+	EasyRider:ShowActionBar()
+	UpdateActionBarState()
 end
 
 function EasyRider:OnDisable()
