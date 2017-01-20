@@ -326,8 +326,6 @@ function SummonMount(category)
 	
 	if mount then
 		C_MountJournal.SummonByID(mount.mountID)
-	else
-		EasyRider:Print("NO mount!")
 	end
 
 	lastCategorySummoned = category
@@ -429,7 +427,6 @@ function ButtonOnLeave(button)
 end
 
 function ButtonOnDragStart(button)
-	EasyRider:Print("ButtonOnDragStart")
 	local options = EasyRider.db.global.actionBar or {}
 	local frame = EasyRider.actionBar
 
@@ -686,26 +683,12 @@ function CreateActionBar()
 
 	for index = 1, TOTAL_CATEGORIES do
 		local button = CreateFrame("Button", "EasyRider_Button"..index, frame, "SecureActionButtonTemplate, ActionButtonTemplate")
+		
 		button:SetSize(37, 37)
-
 		button.category = index
 		button:RegisterForClicks("AnyUp")
-		button:SetMotionScriptsWhileDisabled(true)
-    
-		button:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
-		button:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-		button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-		--item:SetDisabledTexture(buttonInfo[index].icon)
-		--do local tex = button:GetNormalTexture()
-		--	tex:ClearAllPoints()
-		--	tex:SetPoint("CENTER", 0, -1)
-		--	tex:SetSize(64, 64)
-		--end
-    
-		
-		--button.icon = button:CreateTexture("$parentIconTexture", "ARTWORK")
-		button.icon:SetTexture(buttonInfo[index].icon)
-    
+		button:SetMotionScriptsWhileDisabled(true)    
+		button.icon:SetTexture(buttonInfo[index].icon)    
 		button:SetScript('OnLoad', ButtonOnLoad)
 		button:SetScript('OnClick', ButtonOnClick)
 		button:SetScript('OnEnter', ButtonOnEnter)
@@ -741,9 +724,9 @@ function EasyRider:ShowActionBar()
 			button:ClearAllPoints();
 
 			if options.orientation == ORIENTATION_HORIZONTAL then
-				button:SetPoint("LEFT", (6 + 38 * count), 0);
+				button:SetPoint("LEFT", (6 + 40 * count), 0);
 			else
-				button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
+				button:SetPoint("TOPLEFT", 0, (6 + 40 * count)* -1);
 			end
 
 			button:Show();
@@ -756,11 +739,11 @@ function EasyRider:ShowActionBar()
 	
 
 	if options.orientation == ORIENTATION_HORIZONTAL then
-		frame:SetWidth(10 + 38 * count);
-		frame:SetHeight(38)
+		frame:SetWidth(10 + 40 * count);
+		frame:SetHeight(40)
 	else
-		frame:SetHeight(10 + 38 * count);
-		frame:SetWidth(38)
+		frame:SetHeight(10 + 40 * count);
+		frame:SetWidth(40)
 	end
 
 	frame:ClearAllPoints()
