@@ -43,3 +43,11 @@ L["Top"] = true
 L["Bottom"] = true
 L["Left"] = true
 L["Right"] = true
+
+L["Show Buttons"] = true
+L["Ground Mount"] = true
+L["Flying Mount"] = true
+L["Surface Mount"] = true
+L["Aquatic Mount"] = true
+L["Passenger Mount"] = true
+L["Vendor Mount"] = true

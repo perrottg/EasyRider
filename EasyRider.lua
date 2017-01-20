@@ -3,7 +3,6 @@ EasyRider = LibStub("AceAddon-3.0"):NewAddon("EasyRider", "AceConsole-3.0", "Ace
 local L = LibStub("AceLocale-3.0"):GetLocale("EasyRider")
 
 local buttonsInitialised = false
-local buttons = {}
 local mountDatastore = {}
 
 local mountTypes = {
@@ -40,6 +39,7 @@ local inVehicle = false
 
 local lastCategorySummoned = 0
 local buttonInfo = {}
+
 buttonInfo[CATEGORY_GROUND] = {
 	title = L["Summon Ground Mount"],
 	icon = "Interface\\Icons\\Ability_mount_ridinghorse",
@@ -252,7 +252,7 @@ function EasyRider:ShowTooltip(category)
     --    GameTooltip:SetOwner(button, "ANCHOR_RIGHT");
     --end
 
-	GameTooltip_SetDefaultAnchor(tooltip, buttons[category])
+	GameTooltip_SetDefaultAnchor(tooltip, EasyRider.buttons[category])
 
     tooltip:AddLine(info.title, white.r, white.g, white.b);
 	tooltip:AddLine("1.5 sec cast", white.r, white.g, white.b);
@@ -393,6 +393,32 @@ function SetActionBarAlignment(alignment)
 		end
 	end
 end
+
+function GetVisibleButtons()
+	local options = EasyRider.db.global.actionBar or {}
+	local visibleButtons = options.visibleButtons
+
+	if not visibleButtons then 
+		visibleButtons = {}
+
+		for index = 1, TOTAL_CATEGORIES do
+			visibleButtons[index] = true
+		end
+	end
+	
+	return visibleButtons
+end
+
+function ShowActionButton(buttonCategory, show)
+	local visibleButtons = GetVisibleButtons()
+
+	if show ~= visibleButtons[buttonCategory] then
+		visibleButtons[buttonCategory] = show
+		EasyRider.db.global.actionBar.visibleButtons = visibleButtons
+
+		EasyRider:ShowActionBar()
+	end
+end
 	
 function ButtonOnEnter(button)
 	EasyRider:ShowTooltip(button.category)
@@ -431,6 +457,8 @@ function SaveActionBarPosition()
 	options.position = {}
 	options.position.XPos = frame:GetLeft()
 	options.position.YPos = frame:GetBottom()
+	options.position.X = frame:GetLeft()
+	options.position.Y = frame:GetTop()
 
 	EasyRider.db.global.actionBar = options
 end
@@ -467,15 +495,22 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 		info = UIDropDownMenu_CreateInfo()
 		info.hasArrow = true
 		info.notCheckable = true
-		info.text = L["Orientation"]
-		info.value = "OrientationMenu"
+		info.text = L["Anchor"]		
+		info.value = "AnchorMenu"
 		UIDropDownMenu_AddButton(info, level)
-		
+
 		info = UIDropDownMenu_CreateInfo()
 		info.hasArrow = true
 		info.notCheckable = true
-		info.text = L["Anchor"]		
-		info.value = "AnchorMenu"
+		info.text = L["Orientation"]
+		info.value = "OrientationMenu"
+		UIDropDownMenu_AddButton(info, level)
+			
+		info = UIDropDownMenu_CreateInfo()
+		info.hasArrow = true
+		info.notCheckable = true
+		info.text = L["Show Buttons"]		
+		info.value = "ShowButtonsMenu"
 		UIDropDownMenu_AddButton(info, level)
 
 		info = UIDropDownMenu_CreateInfo()
@@ -566,6 +601,75 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 				SetActionBarAlignment(ALIGNMENT_RIGHT) 
 			end
 			UIDropDownMenu_AddButton(info, level)
+		elseif UIDROPDOWNMENU_MENU_VALUE == "ShowButtonsMenu" then
+			local visibleButtons = GetVisibleButtons()
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Ground Mount"]
+			info.checked = visibleButtons[1]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(1, not visibleButtons[1])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Flying Mount"]
+			info.checked = visibleButtons[2]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(2, not visibleButtons[2])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Surface Mount"]
+			info.checked = visibleButtons[3]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(3, not visibleButtons[3])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Aquatic Mount"]
+			info.checked = visibleButtons[4]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(4, not visibleButtons[4])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Passenger Mount"]
+			info.checked = visibleButtons[5]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(5, not visibleButtons[5])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
+			info = UIDropDownMenu_CreateInfo()
+			info.hasArrow = false
+			info.notCheckable = false
+			info.text = L["Vendor Mount"]
+			info.checked = visibleButtons[6]
+			info.func = function() 
+				CloseDropDownMenus()
+				ShowActionButton(6, not visibleButtons[6])
+			end
+			UIDropDownMenu_AddButton(info, level)
+
 		end
 	end
 end
@@ -574,6 +678,7 @@ function CreateActionBar()
 	local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
 	local options = EasyRider.db.global.actionBar or {}
 	local preferred = EasyRider.db.char.preferredMounts or {}
+	EasyRider.buttons = {}
 
 	frame:SetMovable(true)
 	frame:SetToplevel(true)
@@ -609,7 +714,7 @@ function CreateActionBar()
 		button:SetScript("OnDragStop", ButtonOnDragStop)
 		button:RegisterForDrag("LeftButton")
 
-		buttons[index] = button
+		EasyRider.buttons[index] = button
 	end
 
 	EasyRider.actionBar = frame
@@ -622,23 +727,34 @@ function EasyRider:ShowActionBar()
 	local count = 0
 	local frame = EasyRider.actionBar
 	local options = EasyRider.db.global.actionBar or {}
+	local visibleButtons = GetVisibleButtons()
+	
+	
 
-	for index = 1, TOTAL_CATEGORIES do		
-		local button = buttons[index]
-		local info = buttonInfo[index]
+	for index = 1, TOTAL_CATEGORIES do
 		
-		button:ClearAllPoints();
+		local button = EasyRider.buttons[index]
+		local info = buttonInfo[index]
 
-		if options.orientation == ORIENTATION_HORIZONTAL then
-			button:SetPoint("LEFT", (6 + 38 * count), 0);
+		if visibleButtons[index] then
+		
+			button:ClearAllPoints();
+
+			if options.orientation == ORIENTATION_HORIZONTAL then
+				button:SetPoint("LEFT", (6 + 38 * count), 0);
+			else
+				button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
+			end
+
+			button:Show();
+			count = count + 1;   
 		else
-			button:SetPoint("TOPLEFT", 0, (6 + 38 * count)* -1);
+			button:Hide()
 		end
-
-		button:Show();
-		count = count + 1;   
 	end
 	
+	
+
 	if options.orientation == ORIENTATION_HORIZONTAL then
 		frame:SetWidth(10 + 38 * count);
 		frame:SetHeight(38)
@@ -647,13 +763,17 @@ function EasyRider:ShowActionBar()
 		frame:SetWidth(38)
 	end
 
-	frame:ClearAllPoints();
+	frame:ClearAllPoints()
 
 	if options.alignment == ALIGNMENT_NONE and options.position then
-		x = options.position.XPos
-		y = options.position.YPos
-		frame:SetPoint("BOTTOMLEFT", x, y)
+		if options.position.X and options.position.Y then
+			frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", options.position.X, options.position.Y)
+		else
+			frame:SetPoint("BOTTOMLEFT", options.position.XPos, options.position.YPos)
+		end
+		
 	else
+		frame:SetClampedToScreen(true)
 		if options.alignment and options.alignment == ALIGNMENT_TOP then
 			frame:SetPoint("TOP")
 		elseif options.alignment and options.alignment == ALIGNMENT_BOTTOM  then 
@@ -686,7 +806,7 @@ function UpdateActionBarState()
 
 
 	for index = 1, TOTAL_CATEGORIES do
-		local button = buttons[index]
+		local button = EasyRider.buttons[index]
 
 		if button then
 			local icon = button.icon;
