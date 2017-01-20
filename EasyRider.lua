@@ -765,6 +765,7 @@ function EasyRider:ShowActionBar()
 
 	frame:ClearAllPoints()
 
+
 	if options.alignment == ALIGNMENT_NONE and options.position then
 		if options.position.X and options.position.Y then
 			frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", options.position.X, options.position.Y)
@@ -785,7 +786,6 @@ function EasyRider:ShowActionBar()
 		end
 	end
 
-	UpdateActionBarState()
 	frame:Show()		
 end
 
@@ -798,6 +798,7 @@ local function DelayedInit()
 	CacheMounts()
 	CreateActionBar()
 	EasyRider:ShowActionBar()
+	UpdateActionBarState()
 end
 
 function UpdateActionBarState()
@@ -828,7 +829,7 @@ function UpdateActionBarState()
 		if inVehicle or inPetBattle then
 			HideActionBar()
 		else
-			ShowActionBar()
+			EasyRider:ShowActionBar()
 		end
 	end
 end
