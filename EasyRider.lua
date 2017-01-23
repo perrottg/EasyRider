@@ -347,31 +347,31 @@ function ButtonOnClick(actionButton, mouseButton)
 end
 
 function ToggleLocked(dropdownbutton, arg1, arg2, checked)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 
 	options.locked = not checked
-	EasyRider.db.global.actionBar = options
+	SetActionBarOptions(options)
 end
 
 function ToggleAutoHide(dropdownbutton, arg1, arg2, checked)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 
-	options.alwaysShow = checked
-	EasyRider.db.global.actionBar = options
+	options.autoHide = checked
+	SetActionBarOptions(options)
 end
 
 function SetActionBarOrientation(orientation)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 
 	if options.orientation ~= orientation then
 		options.orientation = orientation
-		EasyRider.db.global.actionBar = options
+		SetActionBarOptions(options)
 		EasyRider:ShowActionBar()
 	end
 end
 
 function SetActionBarAlignment(alignment)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 
 	if options.alignment ~= alignment then 
 		options.alignment = alignment
@@ -382,7 +382,7 @@ function SetActionBarAlignment(alignment)
 			options.orientation = ORIENTATION_VERTICAL
 		end
 		
-		EasyRider.db.global.actionBar = options
+		SetActionBarOptions(options)
 
 		if alignment == ALIGNMENT_NONE  and not options.position then
 			SaveActionBarPosition()
@@ -392,28 +392,12 @@ function SetActionBarAlignment(alignment)
 	end
 end
 
-function GetVisibleButtons()
-	local options = EasyRider.db.global.actionBar or {}
-	local visibleButtons = options.visibleButtons
-
-	if not visibleButtons then 
-		visibleButtons = {}
-
-		for index = 1, TOTAL_CATEGORIES do
-			visibleButtons[index] = true
-		end
-	end
-	
-	return visibleButtons
-end
-
 function ShowActionButton(buttonCategory, show)
-	local visibleButtons = GetVisibleButtons()
+	local options = GetActionBarOptions()
 
-	if show ~= visibleButtons[buttonCategory] then
-		visibleButtons[buttonCategory] = show
-		EasyRider.db.global.actionBar.visibleButtons = visibleButtons
-
+	if show ~= options.visibleButtons[buttonCategory] then
+		options.visibleButtons[buttonCategory] = show
+		SetActionBarOptions(options)
 		EasyRider:ShowActionBar()
 	end
 end
@@ -427,7 +411,7 @@ function ButtonOnLeave(button)
 end
 
 function ButtonOnDragStart(button)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 	local frame = EasyRider.actionBar
 
 	if not options.locked then
@@ -436,28 +420,26 @@ function ButtonOnDragStart(button)
 end
 
 function ButtonOnDragStop(button)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 	local frame = EasyRider.actionBar
 
 	frame:StopMovingOrSizing()
 
 	options.alignment = ALIGNMENT_NONE
 
-	EasyRider.db.global.actionBar = options
+	SetActionBarOptions(options)
 	SaveActionBarPosition()
 end
 
 function SaveActionBarPosition()
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 	local frame = EasyRider.actionBar
 
 	options.position = {}
-	options.position.XPos = frame:GetLeft()
-	options.position.YPos = frame:GetBottom()
 	options.position.X = frame:GetLeft()
 	options.position.Y = frame:GetTop()
 
-	EasyRider.db.global.actionBar = options
+	SetActionBarOptions(options)
 end
 
   -- menu create function
@@ -466,7 +448,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 		return
 	end
 
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 	local info = nil
 	 
 	if level == 1 then
@@ -476,7 +458,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 		info.notCheckable = false
 		info.text = L["Auto Hide"]
 		info.checked = false
-		info.checked = not options.alwaysShow
+		info.checked = options.autoHide
 		info.func = ToggleAutoHide 
 		UIDropDownMenu_AddButton(info, level)
 		
@@ -525,7 +507,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Horizontal"]
-			info.checked = options.orientation and options.orientation == ORIENTATION_HORIZONTAL
+			info.checked = options.orientation == ORIENTATION_HORIZONTAL
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarOrientation(ORIENTATION_HORIZONTAL) 
@@ -536,7 +518,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Vertical"]
-			info.checked = not options.orientation or options.orientation == ORIENTATION_VERTICAL
+			info.checked = options.orientation == ORIENTATION_VERTICAL
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarOrientation(ORIENTATION_VERTICAL) 
@@ -548,7 +530,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["None"]
-			info.checked = options.alignment and options.alignment == ALIGNMENT_NONE
+			info.checked = options.alignment == ALIGNMENT_NONE
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_NONE) 
@@ -559,7 +541,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Top"]
-			info.checked = options.alignment and options.alignment == ALIGNMENT_TOP
+			info.checked = options.alignment == ALIGNMENT_TOP
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_TOP) 
@@ -570,7 +552,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Bottom"]
-			info.checked = options.alignment and options.alignment == ALIGNMENT_BOTTOM
+			info.checked = options.alignment == ALIGNMENT_BOTTOM
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_BOTTOM) 
@@ -581,7 +563,7 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Left"]
-			info.checked = options.alignment and options.alignment == ALIGNMENT_LEFT
+			info.checked = options.alignment == ALIGNMENT_LEFT
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_LEFT) 
@@ -592,23 +574,21 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Right"]
-			info.checked = not options.alignment or options.alignment == ALIGNMENT_RIGHT
+			info.checked = options.alignment == ALIGNMENT_RIGHT
 			info.func = function() 
 				CloseDropDownMenus()
 				SetActionBarAlignment(ALIGNMENT_RIGHT) 
 			end
 			UIDropDownMenu_AddButton(info, level)
 		elseif UIDROPDOWNMENU_MENU_VALUE == "ShowButtonsMenu" then
-			local visibleButtons = GetVisibleButtons()
-
 			info = UIDropDownMenu_CreateInfo()
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Ground Mount"]
-			info.checked = visibleButtons[1]
+			info.checked = options.visibleButtons[1]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(1, not visibleButtons[1])
+				ShowActionButton(1, not options.visibleButtons[1])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -616,10 +596,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Flying Mount"]
-			info.checked = visibleButtons[2]
+			info.checked = options.visibleButtons[2]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(2, not visibleButtons[2])
+				ShowActionButton(2, not options.visibleButtons[2])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -627,10 +607,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Surface Mount"]
-			info.checked = visibleButtons[3]
+			info.checked = options.visibleButtons[3]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(3, not visibleButtons[3])
+				ShowActionButton(3, not options.visibleButtons[3])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -638,10 +618,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Aquatic Mount"]
-			info.checked = visibleButtons[4]
+			info.checked = options.visibleButtons[4]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(4, not visibleButtons[4])
+				ShowActionButton(4, not options.visibleButtons[4])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -649,10 +629,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Passenger Mount"]
-			info.checked = visibleButtons[5]
+			info.checked = options.visibleButtons[5]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(5, not visibleButtons[5])
+				ShowActionButton(5, not options.visibleButtons[5])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -660,10 +640,10 @@ function EasyRiderDropDownMenu_Initialize(self, level)
 			info.hasArrow = false
 			info.notCheckable = false
 			info.text = L["Vendor Mount"]
-			info.checked = visibleButtons[6]
+			info.checked = options.visibleButtons[6]
 			info.func = function() 
 				CloseDropDownMenus()
-				ShowActionButton(6, not visibleButtons[6])
+				ShowActionButton(6, not options.visibleButtons[6])
 			end
 			UIDropDownMenu_AddButton(info, level)
 
@@ -673,7 +653,7 @@ end
 
 function CreateActionBar()
 	local frame = CreateFrame("Frame", "EasyRiderActionBar", UIParent)
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 	local preferred = EasyRider.db.char.preferredMounts or {}
 	EasyRider.buttons = {}
 
@@ -706,20 +686,45 @@ function CreateActionBar()
 	UIDropDownMenu_Initialize(dropdown, EasyRiderDropDownMenu_Initialize, "MENU");
 end
 
+function GetActionBarOptions()
+	local options = EasyRider.db.global.actionBar
+
+	if not options then
+		options =	{}
+		options.alignment = ALIGNMENT_NONE
+		options.orientation = ORIENTATION_HORIZONTAL
+		options.autoHide = true
+		options.locked = false
+	end
+
+	if not options.visibleButtons then
+		options.visibleButtons = {}
+
+		for index = 1, TOTAL_CATEGORIES do
+			options.visibleButtons[index] = true
+		end
+	end
+
+	return options
+end
+
+function SetActionBarOptions(options)
+	EasyRider.db.global.actionBar = options
+end
+ 
 function EasyRider:ShowActionBar()
 	local count = 0
 	local frame = EasyRider.actionBar
-	local options = EasyRider.db.global.actionBar or {}
-	local visibleButtons = GetVisibleButtons()
-	
-	
+	local options = GetActionBarOptions()
+
+	frame:Hide()
 
 	for index = 1, TOTAL_CATEGORIES do
 		
 		local button = EasyRider.buttons[index]
 		local info = buttonInfo[index]
 
-		if visibleButtons[index] then
+		if options.visibleButtons[index] then
 		
 			button:ClearAllPoints();
 
@@ -735,8 +740,6 @@ function EasyRider:ShowActionBar()
 			button:Hide()
 		end
 	end
-	
-	
 
 	if options.orientation == ORIENTATION_HORIZONTAL then
 		frame:SetWidth(10 + 40 * count);
@@ -748,28 +751,32 @@ function EasyRider:ShowActionBar()
 
 	frame:ClearAllPoints()
 
-
-	if options.alignment == ALIGNMENT_NONE and options.position then
-		if options.position.X and options.position.Y then
-			frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", options.position.X, options.position.Y)
+	if options.alignment == ALIGNMENT_NONE then
+		if options.position then
+			if options.position.X and options.position.Y then
+				frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", options.position.X, options.position.Y)
+			else
+				frame:SetPoint("BOTTOMLEFT", options.position.XPos, options.position.YPos)			
+			end
 		else
-			frame:SetPoint("BOTTOMLEFT", options.position.XPos, options.position.YPos)
+			frame:SetPoint("CENTER")
 		end
-		
 	else
 		frame:SetClampedToScreen(true)
-		if options.alignment and options.alignment == ALIGNMENT_TOP then
+		if options.alignment == ALIGNMENT_TOP then
 			frame:SetPoint("TOP")
-		elseif options.alignment and options.alignment == ALIGNMENT_BOTTOM  then 
+		elseif options.alignment == ALIGNMENT_BOTTOM  then 
 			frame:SetPoint("BOTTOM")
-		elseif options.alignment and options.alignment == ALIGNMENT_LEFT then
+		elseif options.alignment == ALIGNMENT_LEFT then
 			frame:SetPoint("LEFT")
 		else
 			frame:SetPoint("RIGHT")
 		end
 	end
 
-	frame:Show()		
+	if not options.hide then
+		frame:Show()	
+	end
 end
 
 local function HideActionBar()
@@ -779,7 +786,7 @@ end
 
 function UpdateActionBarState()
 	local usable = IsOutdoors() and not IsIndoors() and not  inCombat and not inVehicle and not inPetBattle	
-	local options = EasyRider.db.global.actionBar or {}
+	local options = GetActionBarOptions()
 
 
 	for index = 1, TOTAL_CATEGORIES do
@@ -809,6 +816,29 @@ function UpdateActionBarState()
 		end
 	end
 end
+
+function EasyRider:ChatCommand(input)
+	if not input or input:trim() == "" then 
+		return
+	end
+
+	local options = GetActionBarOptions()
+	local command = input:lower() or nil
+
+	if command == L["reset"]:lower() then
+		SetActionBarOptions(nil)
+		EasyRider:ShowActionBar()
+	elseif command == L["show"]:lower() then
+		options.hide = false
+		SetActionBarOptions(options)
+		EasyRider:ShowActionBar()
+	elseif command == L["hide"]:lower() then
+		options.hide = true
+		SetActionBarOptions(options)
+		HideActionBar()
+	end
+end
+
 
 function EasyRider:PET_BATTLE_OPENING_START()
 	inPetBattle = true
@@ -850,6 +880,7 @@ end
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
+	self:RegisterChatCommand("easyrider", "ChatCommand")
 	EasyRider:ScheduleTimer(CacheMounts, 3)
 	CreateActionBar()	
 end

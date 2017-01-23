@@ -51,3 +51,8 @@ L["Surface Mount"] = true
 L["Aquatic Mount"] = true
 L["Passenger Mount"] = true
 L["Vendor Mount"] = true
+
+L["reset"] = true
+L["show"] = true
+L["hide"] = true
+
