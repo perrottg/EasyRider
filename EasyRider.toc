@@ -1,6 +1,6 @@
 ## Interface: 70100
 ## Title: EasyRider
-## Version: 0.5.2
+## Version: 0.6
 ## Author: Ludius of Caelestrasz-US
 ## Notes: Quick and easy summon and categorization of mounts.
 ## SavedVariables: EasyRiderDB
