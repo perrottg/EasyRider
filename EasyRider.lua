@@ -43,38 +43,32 @@ local buttonInfo = {}
 buttonInfo[CATEGORY_GROUND] = {
 	title = L["Summon Ground Mount"],
 	icon = "Interface\\Icons\\Ability_mount_ridinghorse",
-	description = format("%s %s", L["Summons and dismisses the preferred ground mount."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
+	description = L["Summons and dismisses a ground mount."]
 }
 buttonInfo[CATEGORY_FLY] = {
 	title = L["Summon Flying Mount"],
 	icon = "Interface\\Icons\\Ability_mount_goldengryphon",	
-	description = format("%s %s", L["Summons and dismisses the preferred flying mount."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
+	description = L["Summons and dismisses a flying mount."]
 }
 buttonInfo[CATEGORY_SURFACE] = {
 	title = L["Summon Surface Mount"],
 	icon = "Interface\\Icons\\Ability_mount_waterstridermount",
-	description = format("%s %s", L["Summons and dismisses the preferred mount capable of walking on water."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])		
+	description = L["Summons and dismisses a mount capable of walking on water."]
 }	
 buttonInfo[CATEGORY_AQUATIC] = {
 	title = L["Summon Aquatic Mount"],
 	icon = "Interface\\Icons\\Ability_mount_seahorse",
-	description = format("%s %s", L["Summons and  dismisses the preferred aquatic mount."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])	
+	description = L["Summons and  dismisses an aquatic mount."]
 }
 buttonInfo[CATEGORY_PASSENGER] = {
 	title = L["Summon Passenger Mount"], 
 	icon = "Interface\\Icons\\Ability_mount_rocketmount2",
-	description = format("%s %s", L["Summons and dismisses the preferred mount capable of transporting a passenger."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
+	description = L["Summons and dismisses a mount capable of transporting a passenger."]
 }
 buttonInfo[CATEGORY_VENDOR] = {
 	title = L["Summon Vendor Mount"],
 	icon = "Interface\\Icons\\Ability_mount_mammoth_brown_3seater",
-	description = format("%s %s", L["Summons and dismisses the preferred mount with a vendor."], 
-		L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."])
+	description = L["Summons and dismisses a mount with a vendor."]
 }
 
 local red = { r = 1.0, g = 0.2, b = 0.2 }
@@ -111,23 +105,14 @@ local function IndexMount(mount, category)
 end 
 
 local function CaptureMounts()
-	local collectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
-	local notCollectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
-	
+	EasyRider:Print("Capturing mount.... ")
 	local mountList = {}
+	local mountIDs = C_MountJournal.GetMountIDs()
 
-	mountDatastore.allMounts = {}
-	mountDatastore.categoryIndex = {}
-	
-	C_MountJournal.SetAllSourceFilters(true);
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, true)
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, true)
-	
-	local numMounts = C_MountJournal.GetNumDisplayedMounts()
+	for _, mountID in pairs(mountIDs) do
 
-	for index = 1, numMounts do		
-		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetDisplayedMountInfo(index)
-		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetDisplayedMountInfoExtra(index);
+		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(mountID)
+		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
 		local index = tostring(spellID)
 
 		local mount = {}
@@ -145,46 +130,57 @@ local function CaptureMounts()
 		mount.isSelfMount = isSelfMount
 		
 		mountList[spellID] = mount
-			
-	end
-	
-	EasyRider.db.global.mountList = mountList
 
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFlag)
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, notCollectedFlag)
+	end
+
+	EasyRider.db.global.mountList = mountList
 end
 
 
 local function CacheMounts()
-	local collectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED)
-	local notCollectedFlag = C_MountJournal.GetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED)
+	local playerFaction = UnitFactionGroup("player")
+
+	if playerFaction == "Horde" then
+		targetFaction = 0
+	elseif  playerFaction ==  "Alliance" then
+		targetFaction = 1
+	end
+
+	if EasyRider.debug then
+		EasyRider:Print("Caching mounts.... ")
+	end
 
 	mountDatastore.allMounts = {}
 	mountDatastore.categoryIndex = {}
 	
-	C_MountJournal.SetAllSourceFilters(true);
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, true)
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, false)
-	
-	local numMounts = C_MountJournal.GetNumDisplayedMounts()
+	local totalMounts = 0
+	local cachedMounts = 0
 
-	for index = 1, numMounts do		
-		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetDisplayedMountInfo(index)
-		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetDisplayedMountInfoExtra(index);
+
+	local mountIDs = C_MountJournal.GetMountIDs()
+
+	for _, mountID in pairs(mountIDs) do
+
+		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(mountID)
+		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
 		local index = tostring(spellID)
 
-		if isUsable or EasyRider:IsMountType(spellID, mountTypes.AQUATIC) then
+		if isCollected and (not isFactionSpecific or faction == targetFaction) then 
+
 			local mount = {}
 			local mountTyped = false
 
 			mount.name = creatureName
-			mount.description = description
 			mount.spellID = spellID
 			mount.mountID = mountID
 			mount.icon = icon
 			mount.creatureID = creatureID
-			mount.mountType = mountType 
+			mount.mountType = mountType
 			mount.isFavorite = isFavorite
+			mount.sourceType = sourceType
+			mount.isFactionSpecific = isFactionSpecific
+			mount.faction = faction
+			mount.isSelfMount = isSelfMount
 
 			mountDatastore.allMounts[index] = mount
 
@@ -201,11 +197,15 @@ local function CacheMounts()
 				IndexMount(mount, CATEGORY_GROUND)
 			end
 
+			cachedMounts = cachedMounts + 1
 		end
+
+		totalMounts = totalMounts + 1		
 	end
 
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_COLLECTED, collectedFlag)
-	C_MountJournal.SetCollectedFilterSetting(LE_MOUNT_JOURNAL_FILTER_NOT_COLLECTED, notCollectedFlag)
+	if EasyRider.debug then
+		EasyRider:Print(string.format("Cached %i of %i total  mounts.", cachedMounts, totalMounts))
+	end
 end
 
 local function GetMountBySpellID(spellID)
@@ -221,6 +221,10 @@ end
 local function GetRandomMount(category, favoriteOnly )
 	--math.randomseed(44)
 
+	if EasyRider.debug then
+		EasyRider:Print("Geting mount for category: "..category)
+	end
+
 	if not favoriteOnly then
 		favoriteOnly = false
 	end
@@ -230,7 +234,7 @@ local function GetRandomMount(category, favoriteOnly )
 	end
 
 	local count = #mountDatastore.categoryIndex[category][tostring(favoriteOnly)]	
-	local index = math.random(1, count)
+	local index = fastrandom(1, count)
 	local spellID = mountDatastore.categoryIndex[category][tostring(favoriteOnly)][index]
 
 	return mountDatastore.allMounts[spellID] 
@@ -316,9 +320,9 @@ function SummonMount(category)
 		if preferred[category] then
 			mount = GetMountBySpellID(preferred[category])
 		end
-		if not mount then
-			mount = GetRandomMount(category, true)
-		end
+		--if not mount then
+		--	mount = GetRandomMount(category, true)
+		--end
 		if not mount then
 			mount = GetRandomMount(category)
 		end
@@ -785,7 +789,7 @@ local function HideActionBar()
 end
 
 function UpdateActionBarState()
-	local usable = IsOutdoors() and not IsIndoors() and not  inCombat and not inVehicle and not inPetBattle	
+	local usable = IsOutdoors() and not IsIndoors() and not inCombat and not inVehicle and not inPetBattle	
 	local options = GetActionBarOptions()
 
 
@@ -836,6 +840,14 @@ function EasyRider:ChatCommand(input)
 		options.hide = true
 		SetActionBarOptions(options)
 		HideActionBar()
+	elseif command == L["debug on"]:lower() then
+		EasyRider.debug = true
+		EasyRider:Print("Debug turned on")
+	elseif command == L["debug off"]:lower() then
+		EasyRider.debug = false
+		EasyRider:Print("Debug turned off")
+	elseif command == "capture" then
+		CaptureMounts()
 	end
 end
 
@@ -861,6 +873,10 @@ function EasyRider:PLAYER_REGEN_DISABLED()
 end
 
 function EasyRider:UNIT_ENTERED_VEHICLE(event, arg1)
+	if EasyRider.debug then
+		EasyRider:Print("UNIT_ENTERED_VEHICLE event received for arg1: " .. arg1 or "")
+	end
+
 	if arg1 == "player" then
 		inVehicle = true
 		UpdateActionBarState()
@@ -868,6 +884,10 @@ function EasyRider:UNIT_ENTERED_VEHICLE(event, arg1)
 end
 
 function EasyRider:UNIT_EXITED_VEHICLE(event, arg1)
+	if EasyRider.debug then
+		EasyRider:Print("UNIT_EXITED_VEHICLE event received for arg1: " .. arg1 or "")
+	end
+	
 	if arg1 == "player" then
 		inVehicle = false
 		UpdateActionBarState()
@@ -875,13 +895,41 @@ function EasyRider:UNIT_EXITED_VEHICLE(event, arg1)
 end
 
 function EasyRider:ACTIONBAR_UPDATE_USABLE()
+	if EasyRider.debug then
+		EasyRider:Print("ACTIONBAR_UPDATE_USABLE evevt received")
+	end
+
 	EasyRider:ScheduleTimer(UpdateActionBarState, 1)
 end
+
+function EasyRider:ZONE_CHANGED()
+	if EasyRider.debug then
+		EasyRider:Print("ZONE_CHANGED evevt received")
+	end
+
+	EasyRider:ScheduleTimer(CacheMounts, 3)
+end
+
+function EasyRider:ZONE_CHANGED_INDOORS()
+	if EasyRider.debug then
+		EasyRider:Print("ZONE_CHANGED_INDOORS evevt received")
+	end
+end
+
+function EasyRider:PLAYER_ENTERING_WORLD()
+	if EasyRider.debug then
+		EasyRider:Print("PLAYER_ENTERING_WORLD evevt received")
+	end
+
+	EasyRider:ScheduleTimer(CacheMounts, 3)
+end
+
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
 	self:RegisterChatCommand("easyrider", "ChatCommand")
-	EasyRider:ScheduleTimer(CacheMounts, 3)
+	EasyRider.debug = false
+	--EasyRider:ScheduleTimer(CacheMounts, 3)
 	CreateActionBar()	
 end
 
@@ -893,6 +941,10 @@ function EasyRider:OnEnable()
 	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
 	EasyRider:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
+	--EasyRider:RegisterEvent("ZONE_CHANGED")
+	--EasyRider:RegisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:RegisterEvent("PLAYER_ENTERING_WORLD")
+	
 	EasyRider:ShowActionBar()
 	UpdateActionBarState()
 end
@@ -905,5 +957,8 @@ function EasyRider:OnDisable()
 	EasyRider:UnregisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:UnregisterEvent("UNIT_EXITED_VEHICLE")
 	EasyRider:UnregisterEvent("ACTIONBAR_UPDATE_USABLE")
+	--EasyRider:UnregisterEvent("ZONE_CHANGED")
+	--EasyRider:UnregisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 

@@ -6,17 +6,17 @@ end
 
 --Used on the tool tips
 L["Summon Ground Mount"] = true
-L["Summons and dismisses the preferred ground mount."] = true
+L["Summons and dismisses a ground mount."] = true
 L["Summon Flying Mount"] = true
-L["Summons and dismisses the preferred flying mount."] = true
+L["Summons and dismisses a flying mount."] = true
 L["Summon Surface Mount"] = true
-L["Summons and dismisses the preferred mount capable of walking on water."] = true
+L["Summons and dismisses a mount capable of walking on water."] = true
 L["Summon Aquatic Mount"] = true
-L["Summons and  dismisses the preferred aquatic mount."] = true
+L["Summons and  dismisses an aquatic mount."] = true
 L["Summon Passenger Mount"] = true
-L["Summons and dismisses the preferred mount capable of transporting a passenger."] = true
+L["Summons and dismisses a mount capable of transporting a passenger."] = true
 L["Summon Vendor Mount"] = true
-L["Summons and dismisses the preferred mount with a vendor."] = true
+L["Summons and dismisses a mount with a vendor."] = true
 L["If the preferred mount has not been set then a favorite or random mount will be summoned instead."] = true
 
 L["Preferred Mount"] = true
@@ -55,4 +55,6 @@ L["Vendor Mount"] = true
 L["reset"] = true
 L["show"] = true
 L["hide"] = true
+L["debug on"] = true
+L["debug off"] = true
 
