@@ -1,2 +1,4 @@
 package-as: EasyRider
 enable-nolib-creation: no
+ignore:
+   - EasyRider.wowproj
