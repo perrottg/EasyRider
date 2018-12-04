@@ -286,7 +286,7 @@ function SetPreferredMount(category)
 		local index = 1
 		local mount = nil
 		repeat 
-			name, rank, icon, count, debuffType, duration, expirationTime, unitCaster, isStealable, shouldConsolidate, spellID = UnitBuff("player", index) 
+			name, icon, count, debuffType, duration, expirationTime, unitCaster, isStealable, shouldConsolidate, spellID = UnitBuff("player", index) 
 			mount = GetMountBySpellID(spellID)
 			if mount then
 				preferred[category] = spellID
