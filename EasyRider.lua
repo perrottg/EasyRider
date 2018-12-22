@@ -851,24 +851,44 @@ function EasyRider:ChatCommand(input)
 	end
 end
 
+local function StartTimer()
+	if EasyRider.debug then
+		EasyRider:Print("Starting timer...")
+	end
+	EasyRider.timer = EasyRider:ScheduleRepeatingTimer(UpdateActionBarState, 1)
+end
+
+local function StopTimer()
+	if EasyRider.debug then
+		EasyRider:Print("Stopping timer...")
+	end
+	if EasyRider.timer then
+		EasyRider:CancelTimer(EasyRider.timer)
+	end
+	EasyRider.timer = nil
+end
 
 function EasyRider:PET_BATTLE_OPENING_START()
 	inPetBattle = true
+	StopTimer()
 	UpdateActionBarState()
 end
 
 function EasyRider:PET_BATTLE_CLOSE()
 	inPetBattle = false
 	UpdateActionBarState()
+	StartTimer()
 end
 
 function EasyRider:PLAYER_REGEN_ENABLED()
 	inCombat = false
 	UpdateActionBarState()
+	StartTimer()
 end
 
 function EasyRider:PLAYER_REGEN_DISABLED()
 	inCombat = true
+	StopTimer()
 	UpdateActionBarState()
 end
 
@@ -879,6 +899,7 @@ function EasyRider:UNIT_ENTERED_VEHICLE(event, arg1)
 
 	if arg1 == "player" then
 		inVehicle = true
+		StopTimer()
 		UpdateActionBarState()
 	end
 end
@@ -891,15 +912,8 @@ function EasyRider:UNIT_EXITED_VEHICLE(event, arg1)
 	if arg1 == "player" then
 		inVehicle = false
 		UpdateActionBarState()
+		StartTimer()
 	end
-end
-
-function EasyRider:ACTIONBAR_UPDATE_USABLE()
-	if EasyRider.debug then
-		EasyRider:Print("ACTIONBAR_UPDATE_USABLE evevt received")
-	end
-
-	EasyRider:ScheduleTimer(UpdateActionBarState, 1)
 end
 
 function EasyRider:ZONE_CHANGED()
@@ -921,15 +935,14 @@ function EasyRider:PLAYER_ENTERING_WORLD()
 		EasyRider:Print("PLAYER_ENTERING_WORLD evevt received")
 	end
 
-	EasyRider:ScheduleTimer(CacheMounts, 3)
+	EasyRider:ScheduleTimer(CacheMounts, 3)	
 end
 
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
 	self:RegisterChatCommand("easyrider", "ChatCommand")
-	EasyRider.debug = false
-	--EasyRider:ScheduleTimer(CacheMounts, 3)
+	EasyRider.debug = true
 	CreateActionBar()	
 end
 
@@ -940,25 +953,25 @@ function EasyRider:OnEnable()
 	EasyRider:RegisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
-	EasyRider:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
-	--EasyRider:RegisterEvent("ZONE_CHANGED")
-	--EasyRider:RegisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:RegisterEvent("ZONE_CHANGED")
+	EasyRider:RegisterEvent("ZONE_CHANGED_INDOORS")
 	EasyRider:RegisterEvent("PLAYER_ENTERING_WORLD")
 	
 	EasyRider:ShowActionBar()
 	UpdateActionBarState()
+	StartTimer()	
 end
 
 function EasyRider:OnDisable()
+	StopTimer()
 	EasyRider:UnregisterEvent("PET_BATTLE_OPENING_START")
 	EasyRider:UnregisterEvent("PET_BATTLE_CLOSE")
 	EasyRider:UnregisterEvent("PLAYER_REGEN_ENABLED")
 	EasyRider:UnregisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:UnregisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:UnregisterEvent("UNIT_EXITED_VEHICLE")
-	EasyRider:UnregisterEvent("ACTIONBAR_UPDATE_USABLE")
-	--EasyRider:UnregisterEvent("ZONE_CHANGED")
-	--EasyRider:UnregisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:UnregisterEvent("ZONE_CHANGED")
+	EasyRider:UnregisterEvent("ZONE_CHANGED_INDOORS")
 	EasyRider:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 
