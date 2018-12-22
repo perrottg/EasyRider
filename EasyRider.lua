@@ -803,11 +803,9 @@ function UpdateActionBarState()
 			if usable and (index ~= CATEGORY_AQUATIC or IsSwimming())  then
 				icon:SetVertexColor(1.0, 1.0, 1.0);
 				normalTexture:SetVertexColor(1.0, 1.0, 1.0);
-				button:Enable()
 			else
 				icon:SetVertexColor(0.4, 0.4, 0.4);
 				normalTexture:SetVertexColor(1.0, 1.0, 1.0);
-				button:Disable()
 			end
 		end
 	end	
