@@ -940,7 +940,7 @@ end
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
 	self:RegisterChatCommand("easyrider", "ChatCommand")
-	EasyRider.debug = true
+	EasyRider.debug = false
 	CreateActionBar()	
 end
 
