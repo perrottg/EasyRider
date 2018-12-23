@@ -7,6 +7,7 @@ local mountTypes = {
 	AQUATIC = 4,
 	PASSENGER = 5,
 	VENDOR = 6,	
+	LOW = 7
 }
 
 local mountDB = {	
@@ -87,6 +88,17 @@ local mountDB = {
 	[228919] = {								-- Darkwater Skate
 		[mountTypes.AQUATIC] = true,
 	},
+	[179244] = {								-- Chauffeured Mechano-Hog
+		[mountTypes.LOW] = true,
+	},
+	[179245] = {								-- Chauffeured Mekgineer's Chopper
+		[mountTypes.LOW] = true,
+	},
+	[264058] = {								-- Mighty Caravan Brutosaur
+		[mountTypes.VENDOR] = true,
+		[mountTypes.PASSENGER] = true,
+		passengers = 2,
+	}
 }
 
 function EasyRider:IsMountType(spellID, mountType)

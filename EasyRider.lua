@@ -14,7 +14,7 @@ local mountTypes = {
 	VENDOR = 6,	
 }
 
-local TOTAL_MOUNT_TYPES = 6
+local TOTAL_MOUNT_TYPES = 7
 
 local CATEGORY_GROUND = 1
 local CATEGORY_FLY = 2
@@ -22,6 +22,7 @@ local CATEGORY_SURFACE = 3
 local CATEGORY_AQUATIC = 4
 local CATEGORY_PASSENGER = 5
 local CATEGORY_VENDOR = 6
+local CATEGORY_LOW = 7
 
 local TOTAL_CATEGORIES = 6
 
@@ -130,7 +131,6 @@ local function CaptureMounts()
 		mount.isSelfMount = isSelfMount
 		
 		mountList[spellID] = mount
-
 	end
 
 	EasyRider.db.global.mountList = mountList
@@ -235,6 +235,11 @@ local function GetRandomMount(category, favoriteOnly )
 
 	local count = #mountDatastore.categoryIndex[category][tostring(favoriteOnly)]	
 	local index = fastrandom(1, count)
+
+	if EasyRider.debug then
+		EasyRider:Print("Found "..count.." mounts. Selected no. "..index)
+	end
+
 	local spellID = mountDatastore.categoryIndex[category][tostring(favoriteOnly)][index]
 
 	return mountDatastore.allMounts[spellID] 
@@ -312,7 +317,9 @@ function SummonMount(category)
 		return
 	end
 
-	if IsAltKeyDown() then
+	if UnitLevel("player") < 20 and category == CATEGORY_GROUND then
+		mount = GetRandomMount(CATEGORY_LOW, false)
+	elseif IsAltKeyDown() then
 		mount = GetRandomMount(category, true)
 	elseif IsShiftKeyDown() then
 		mount = GetRandomMount(category)		
@@ -320,9 +327,6 @@ function SummonMount(category)
 		if preferred[category] then
 			mount = GetMountBySpellID(preferred[category])
 		end
-		--if not mount then
-		--	mount = GetRandomMount(category, true)
-		--end
 		if not mount then
 			mount = GetRandomMount(category)
 		end
