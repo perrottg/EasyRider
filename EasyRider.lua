@@ -113,7 +113,7 @@ local function CaptureMounts()
 	for _, mountID in pairs(mountIDs) do
 
 		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(mountID)
-		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
+		local creatureID, description, sourceText, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
 		local index = tostring(spellID)
 
 		local mount = {}
@@ -124,8 +124,10 @@ local function CaptureMounts()
 		mount.mountID = mountID
 		mount.icon = icon
 		mount.creatureID = creatureID
+		mount.description = description
 		mount.mountType = mountType 
 		mount.sourceType = sourceType
+		mount.sourceText = sourceText
 		mount.isFactionSpecific = isFactionSpecific
 		mount.faction = faction
 		mount.isSelfMount = isSelfMount
@@ -165,7 +167,7 @@ local function CacheMounts()
 		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
 		local index = tostring(spellID)
 
-		if isCollected and (not isFactionSpecific or faction == targetFaction) then 
+		if isCollected and (not hideOnChar) and (not isFactionSpecific or faction == targetFaction) then 
 
 			local mount = {}
 			local mountTyped = false
@@ -185,7 +187,7 @@ local function CacheMounts()
 			mountDatastore.allMounts[index] = mount
 
 			for i = mountTypes.SURFACE, TOTAL_MOUNT_TYPES do
-				if EasyRider:IsMountType(mount.spellID, i) then
+				if EasyRider:IsMountType(mountID, i) then
 					IndexMount(mount, i)		
 					mountTyped = true
 				end
