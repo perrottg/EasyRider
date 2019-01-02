@@ -22,7 +22,6 @@ local CATEGORY_SURFACE = 3
 local CATEGORY_AQUATIC = 4
 local CATEGORY_PASSENGER = 5
 local CATEGORY_VENDOR = 6
-local CATEGORY_LOW = 7
 
 local TOTAL_CATEGORIES = 6
 
@@ -40,6 +39,7 @@ local inVehicle = false
 
 local lastCategorySummoned = 0
 local buttonInfo = {}
+local timerInterval = 3
 
 buttonInfo[CATEGORY_GROUND] = {
 	title = L["Summon Ground Mount"],
@@ -80,31 +80,6 @@ local gray = { r = 0.5, g = 0.5, b = 0.5 }
 local black = { r = 0.0, g = 0.0, b = 0.0 }
 local white = { r = 1.0, g = 1.0, b = 1.0 }
 
-local function IndexMount(mount, category)
-	local index = tostring(mount.spellID)
-	local count = 0
-
-	if not mountDatastore.categoryIndex[category] then
-		mountDatastore.categoryIndex[category] = {}
-	end
-
-	if not mountDatastore.categoryIndex[category][tostring(false)] then
-		mountDatastore.categoryIndex[category][tostring(false)] = {}
-	end
-
-	if not mountDatastore.categoryIndex[category][tostring(true)] then
-		mountDatastore.categoryIndex[category][tostring(true)] = {}
-	end
-	
-	count = #mountDatastore.categoryIndex[category][tostring(false)]			
-	mountDatastore.categoryIndex[category][tostring(false)][count +1] = index
-
-	if mount.isFavorite then
-		count = #mountDatastore.categoryIndex[category][tostring(true)]			
-		mountDatastore.categoryIndex[category][tostring(true)][count +1] = index
-	end
-end 
-
 local function CaptureMounts()
 	EasyRider:Print("Capturing mount.... ")
 	local mountList = {}
@@ -138,113 +113,23 @@ local function CaptureMounts()
 	EasyRider.db.global.mountList = mountList
 end
 
+local function ButtonIsUsable(button)
+	local usable = false
+	local doingOtherStuff = inCombat or inVehicle or inPetBattle or IsFlying() or UnitOnTaxi("player") or UnitIsDead("player")
+	local category = button.category
+	local mountTotal = EasyRider:GetUsableMountTotal(category)
 
-local function CacheMounts()
-	local playerFaction = UnitFactionGroup("player")
-
-	if playerFaction == "Horde" then
-		targetFaction = 0
-	elseif  playerFaction ==  "Alliance" then
-		targetFaction = 1
+	if category == CATEGORY_GROUND or category == CATEGORY_SURFACE or category == CATEGORY_VENDOR then
+		usable = IsOutdoors() 
+	elseif category == CATEGORY_FLY then
+		usable = IsOutdoors() --and IsFlyableArea()
+	elseif category == CATEGORY_AQUATIC then				
+		usable = IsSwimming()
+	elseif category == CATEGORY_PASSENGER then
+		usable = IsOutdoors()
 	end
 
-	if EasyRider.debug then
-		EasyRider:Print("Caching mounts.... ")
-	end
-
-	mountDatastore.allMounts = {}
-	mountDatastore.categoryIndex = {}
-	
-	local totalMounts = 0
-	local cachedMounts = 0
-
-
-	local mountIDs = C_MountJournal.GetMountIDs()
-
-	for _, mountID in pairs(mountIDs) do
-
-		local creatureName, spellID, icon, active, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected, mountID = C_MountJournal.GetMountInfoByID(mountID)
-		local creatureID, description, _, isSelfMount, mountType = C_MountJournal.GetMountInfoExtraByID(mountID)
-		local index = tostring(spellID)
-
-		if isCollected and (not hideOnChar) and (not isFactionSpecific or faction == targetFaction) then 
-
-			local mount = {}
-			local mountTyped = false
-
-			mount.name = creatureName
-			mount.spellID = spellID
-			mount.mountID = mountID
-			mount.icon = icon
-			mount.creatureID = creatureID
-			mount.mountType = mountType
-			mount.isFavorite = isFavorite
-			mount.sourceType = sourceType
-			mount.isFactionSpecific = isFactionSpecific
-			mount.faction = faction
-			mount.isSelfMount = isSelfMount
-
-			mountDatastore.allMounts[index] = mount
-
-			for i = mountTypes.SURFACE, TOTAL_MOUNT_TYPES do
-				if EasyRider:IsMountType(mountID, i) then
-					IndexMount(mount, i)		
-					mountTyped = true
-				end
-			end
-
-			if mountType == 248 and not mountTyped then
-				IndexMount(mount, CATEGORY_FLY)
-			elseif mountType == 230 and not mountTyped then
-				IndexMount(mount, CATEGORY_GROUND)
-			end
-
-			cachedMounts = cachedMounts + 1
-		end
-
-		totalMounts = totalMounts + 1		
-	end
-
-	if EasyRider.debug then
-		EasyRider:Print(string.format("Cached %i of %i total  mounts.", cachedMounts, totalMounts))
-	end
-end
-
-local function GetMountBySpellID(spellID)
-	if not spellID then
-		return nil
-	end
-
-	local mount = mountDatastore.allMounts[tostring(spellID)]
-
-	return mount
-end
-
-local function GetRandomMount(category, favoriteOnly )
-	--math.randomseed(44)
-
-	if EasyRider.debug then
-		EasyRider:Print("Geting mount for category: "..category)
-	end
-
-	if not favoriteOnly then
-		favoriteOnly = false
-	end
-
-	if not mountDatastore.categoryIndex[category] or #mountDatastore.categoryIndex[category][tostring(favoriteOnly)] == 0 then
-		return nil
-	end
-
-	local count = #mountDatastore.categoryIndex[category][tostring(favoriteOnly)]	
-	local index = fastrandom(1, count)
-
-	if EasyRider.debug then
-		EasyRider:Print("Found "..count.." mounts. Selected no. "..index)
-	end
-
-	local spellID = mountDatastore.categoryIndex[category][tostring(favoriteOnly)][index]
-
-	return mountDatastore.allMounts[spellID] 
+	return usable and not doingOtherStuff and mountTotal > 0
 end
 
 function EasyRider:ShowPopUpMenu(button)	
@@ -294,7 +179,7 @@ function SetPreferredMount(category)
 		local mount = nil
 		repeat 
 			name, icon, count, debuffType, duration, expirationTime, unitCaster, isStealable, shouldConsolidate, spellID = UnitBuff("player", index) 
-			mount = GetMountBySpellID(spellID)
+			mount = EasyRider:GetMountBySpellID(spellID)
 			if mount then
 				preferred[category] = spellID
 				EasyRider.db.char.preferredMounts = preferred
@@ -319,18 +204,16 @@ function SummonMount(category)
 		return
 	end
 
-	if UnitLevel("player") < 20 and category == CATEGORY_GROUND then
-		mount = GetRandomMount(CATEGORY_LOW, false)
-	elseif IsAltKeyDown() then
-		mount = GetRandomMount(category, true)
+	if IsAltKeyDown() then
+		mount = EasyRider:GetRandomMount(category, true)
 	elseif IsShiftKeyDown() then
-		mount = GetRandomMount(category)		
+		mount = EasyRider:GetRandomMount(category)		
 	else
 		if preferred[category] then
-			mount = GetMountBySpellID(preferred[category])
+			mount = EasyRider:GetMountBySpellID(preferred[category])
 		end
 		if not mount then
-			mount = GetRandomMount(category)
+			mount = EasyRider:GetRandomMount(category)
 		end
 	end		
 	
@@ -342,7 +225,10 @@ function SummonMount(category)
 end
 
 function ButtonOnClick(actionButton, mouseButton)
-	if mouseButton == "LeftButton" then
+	if mouseButton == "LeftButton" and ButtonIsUsable(actionButton) then
+		if EasyRider.debug then
+			EasyRider:Print("Left Button clicked!")
+		end
 		if IsControlKeyDown() then
 			GameTooltip:Hide()
 			SetPreferredMount(actionButton.category)
@@ -452,7 +338,6 @@ function SaveActionBarPosition()
 	SetActionBarOptions(options)
 end
 
-  -- menu create function
 function EasyRiderDropDownMenu_Initialize(self, level)
 	if not level then
 		return
@@ -795,7 +680,6 @@ local function HideActionBar()
 end
 
 function UpdateActionBarState()
-	local usable = IsOutdoors() and not IsIndoors() and not inCombat and not inVehicle and not inPetBattle	
 	local options = GetActionBarOptions()
 
 
@@ -805,8 +689,8 @@ function UpdateActionBarState()
 		if button then
 			local icon = button.icon;
 			local normalTexture = button.NormalTexture;
-			
-			if usable and (index ~= CATEGORY_AQUATIC or IsSwimming())  then
+
+			if ButtonIsUsable(button) then
 				icon:SetVertexColor(1.0, 1.0, 1.0);
 				normalTexture:SetVertexColor(1.0, 1.0, 1.0);
 			else
@@ -845,7 +729,7 @@ function EasyRider:ChatCommand(input)
 		SetActionBarOptions(options)
 		HideActionBar()
 	elseif command == L["debug on"]:lower() then
-		EasyRider.debug = true
+		EasyRider.debug = true	
 		EasyRider:Print("Debug turned on")
 	elseif command == L["debug off"]:lower() then
 		EasyRider.debug = false
@@ -859,7 +743,7 @@ local function StartTimer()
 	if EasyRider.debug then
 		EasyRider:Print("Starting timer...")
 	end
-	EasyRider.timer = EasyRider:ScheduleRepeatingTimer(UpdateActionBarState, 1)
+	EasyRider.timer = EasyRider:ScheduleRepeatingTimer(UpdateActionBarState, timerInterval)
 end
 
 local function StopTimer()
@@ -870,6 +754,16 @@ local function StopTimer()
 		EasyRider:CancelTimer(EasyRider.timer)
 	end
 	EasyRider.timer = nil
+end
+
+local function CacheUsableMounts()
+	EasyRider:CacheUsableMounts()
+end
+
+local function DelayedCache()
+	if EasyRider:TimeLeft(EasyRider.cacheTimer) == 0 then
+		EasyRider.cacheTimer = EasyRider:ScheduleTimer(CacheUsableMounts, 3)
+	end
 end
 
 function EasyRider:PET_BATTLE_OPENING_START()
@@ -924,8 +818,6 @@ function EasyRider:ZONE_CHANGED()
 	if EasyRider.debug then
 		EasyRider:Print("ZONE_CHANGED evevt received")
 	end
-
-	EasyRider:ScheduleTimer(CacheMounts, 3)
 end
 
 function EasyRider:ZONE_CHANGED_INDOORS()
@@ -934,19 +826,34 @@ function EasyRider:ZONE_CHANGED_INDOORS()
 	end
 end
 
+function EasyRider:ZONE_CHANGED_NEW_AREA()
+	if EasyRider.debug then
+		EasyRider:Print("ZONE_CHANGED_NEW_AREA evevt received")
+	end
+
+	DelayedCache()
+end
+
 function EasyRider:PLAYER_ENTERING_WORLD()
 	if EasyRider.debug then
 		EasyRider:Print("PLAYER_ENTERING_WORLD evevt received")
 	end
 
-	EasyRider:ScheduleTimer(CacheMounts, 3)	
+	DelayedCache()
 end
 
+function EasyRider:PLAYER_LEVEL_UP()
+	if EasyRider.debug then
+		EasyRider:Print("PLAYER_LEVEL_UP evevt received")
+	end
+
+	DelayedCache()
+end
 
 function EasyRider:OnInitialize()	
 	self.db = LibStub("AceDB-3.0"):New("EasyRiderDB", nil)
 	self:RegisterChatCommand("easyrider", "ChatCommand")
-	EasyRider.debug = false
+	--EasyRider.debug = true
 	CreateActionBar()	
 end
 
@@ -957,10 +864,11 @@ function EasyRider:OnEnable()
 	EasyRider:RegisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:RegisterEvent("UNIT_EXITED_VEHICLE")
-	EasyRider:RegisterEvent("ZONE_CHANGED")
-	EasyRider:RegisterEvent("ZONE_CHANGED_INDOORS")
+	--EasyRider:RegisterEvent("ZONE_CHANGED")
+	--EasyRider:RegisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	EasyRider:RegisterEvent("PLAYER_ENTERING_WORLD")
-	
+	EasyRider:RegisterEvent("PLAYER_LEVEL_UP")
 	EasyRider:ShowActionBar()
 	UpdateActionBarState()
 	StartTimer()	
@@ -974,8 +882,9 @@ function EasyRider:OnDisable()
 	EasyRider:UnregisterEvent("PLAYER_REGEN_DISABLED")
 	EasyRider:UnregisterEvent("UNIT_ENTERED_VEHICLE")
 	EasyRider:UnregisterEvent("UNIT_EXITED_VEHICLE")
-	EasyRider:UnregisterEvent("ZONE_CHANGED")
-	EasyRider:UnregisterEvent("ZONE_CHANGED_INDOORS")
+	--EasyRider:UnregisterEvent("ZONE_CHANGED")
+	--EasyRider:UnregisterEvent("ZONE_CHANGED_INDOORS")
+	EasyRider:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
 	EasyRider:UnregisterEvent("PLAYER_ENTERING_WORLD")
+	EasyRider:UnregisterEvent("PLAYER_LEVEL_UP")
 end
-

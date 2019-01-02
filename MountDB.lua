@@ -1,18 +1,17 @@
+local usableMountCache = {}
 
---local mountTypes = EasyRider:MountTypes
-local mountTypes = {
+local categories = {
 	GROUND = 1,
-	FLY = 2,
+	FLYING = 2,
 	WATERWALKING = 3,
 	AQUATIC = 4,
 	PASSENGER = 5,
-	VENDOR = 6,	
-	LOW = 7
+	VENDOR = 6
 }
 
 local factions = {
-	HORDE = 0,
-	ALLIANCE = 1,
+	HORDE = "Horde",
+	ALLIANCE = "Alliance",
 }
 
 local families = {
@@ -26,7 +25,9 @@ local families = {
 	RAY = 8,
 	TURTLE = 9,
 	SEAHORSE = 10,
-	STRIDER = 11
+	STRIDER = 11,
+	ELK = 12,
+	RAM = 13
 }
 
 local patch = {
@@ -38,6 +39,16 @@ local patch = {
 	WARLORDSOFDRAENOR = 5,
 	LEGION = 6,
 	BATTLEFORAZEROTH = 7
+}
+
+local classes = {
+	PALADIN = "Paladin"
+}
+
+local zones = {
+	ABYSSALDEPTHS = "Abyssal Depths",
+	KELPTHARFOREST = "Kelp'thar Forest",
+	SHIMMERINGEXPANSE = "Shimmering Expanse"
 }
 
 
@@ -186,12 +197,26 @@ local mountDB = {
 			swimming = true
 		}
 	},
+	[367] = {									-- Exarch's Elekk
+		spellID = 73629,
+		requirements = {
+			characterLevel = 20,
+			ridingSkill = 75,
+			faction = factions.ALLIANCE,
+			class = classes.PALADIN
+		},
+		family = families.ELK,
+		introduced = patch.CATACLYSM,
+		travelModes = {
+			ground = true
+		}
+	},
 	[373] = {									-- Vashj'ir Seahorse
 		spellID = 75207,
 		requirements = {
 			characterLevel = 80,
 			ridingSkill = 225,
-			zone = "Vashj'ir"
+			zones = { zones.ABYSSALDEPTHS, zones.KELPTHARFOREST, zones.SHIMMERINGEXPANSE }
 		},
 		family = families.SEAHORSE,
 		introduced = patch.CATACLYSM,
@@ -434,6 +459,20 @@ local mountDB = {
 		},
 		passengers = 2
 	},
+	[1046] = {									-- Darkforge Ram"
+		spellID = 270562,
+		requirements = {
+			characterLevel = 20,
+			ridingSkill = 75,
+			faction = factions.ALLIANCE,
+			class = classes.PALADIN
+		},
+		family = families.RAM,
+		introduced = patch.BATTLEFORAZEROTH,
+		travelModes = {
+			ground = true
+		}
+	},
 	[1166] = {									-- Great Sea Ray
 		spellID = 278803,
 		requirements = {
@@ -472,25 +511,215 @@ local mountDB = {
 	},
 }
 
-function EasyRider:IsMountType(mountID, mountType)
-	local mount = mountDB[mountID]
-
-	if mountType == mountTypes.GROUND then
-		return mount and mount.travelModes.ground
-	elseif mountType == mountTypes.FLY then
-		return mount and mount.travelModes.flying
-	elseif mountType == mountTypes.WATERWALKING then
-		return mount and mount.travelModes.waterWalking
-	elseif mountType == mountTypes.AQUATIC then
-		return mount and mount.travelModes.swimming
-	elseif mountType == mountTypes.PASSENGER then
-		return mount and mount.passengers and mount.passengers > 0
-	elseif mountType == mountTypes.VENDOR then
-		return mount and mount.vendors
-	elseif mountType == mountTypes.LOW then
-		return mount and ((not mount.requirements) or (not mount.requirements.characterLevel) or (mount.requirements.characterLevel == 1))
-	else 
-		return false
+local function GetPlayerRidingSkill()
+	local skillLevel = 0
+	local spellMap = { [33388] = 75, [33391] = 150, [34090] = 225, [34091] = 300, [90265] = 375 }
+	local _, _, _, numberSpells = GetSpellTabInfo(1)
+	for i = 1, numberSpells, 1 do
+		local spellType, spellID = GetSpellBookItemInfo(i, BOOKTYPE_SPELL)
+		if spellType == "SPELL" and spellMap[spellID] and spellMap[spellID] > skillLevel then
+			skillLevel = spellMap[spellID]			
+		end
 	end
 
+	return skillLevel
+end
+
+
+local function PlayerCanUseMount(mountID)
+	local mount = mountDB[mountID]
+	local isUsable = false
+	
+	if mount and mount.requirements then
+		isUsable = true
+		if mount.requirements.faction then
+			local playerFaction = UnitFactionGroup("player");
+
+			isUsable = isUsable and mount.requirements.faction == playerFaction
+
+			if EasyRider.debug then
+				if isUsable then
+					EasyRider:Print("PASSED Faction Check!")
+				else
+					EasyRider:Print("FAILED Faction Check!")
+				end
+			end
+		end
+		if mount.requirements.class then
+			local _, playerClass = UnitClass("unit");
+
+			isUsable = isUsable and mount.requirements.class == playerClass
+
+			if EasyRider.debug then
+				if isUsable then
+					EasyRider:Print("PASSED Class Check!")
+				else
+					EasyRider:Print("FAILED Class Check!")
+				end
+			end			
+		end
+		if mount.requirements.characterLevel then
+			local playerLevel = UnitLevel("player");
+
+			isUsable = isUsable and mount.requirements.characterLevel <= playerLevel
+		end		
+		if mount.requirements.ridingSkill then
+			local playerRidingSkill = GetPlayerRidingSkill()
+
+			isUsable = isUsable and mount.requirements.ridingSkill <= playerRidingSkill
+		end
+		if mount.requirements.zones then
+			local currentZone = GetZoneText()
+			local inRequiredZone = false
+
+			for i,zone in ipairs(mount.requirements.zones) do
+				if zone == currentZone then
+					inRequiredZone = true
+				end
+			end
+
+			isUsable = isUsable and inRequiredZone
+		end		
+	end
+
+	return isUsable
+end
+
+local function GetMountCategory(mountID, mountType)
+	local mount = mountDB[mountID]
+
+	if mount then
+		if mount.vendors then
+			return categories.VENDOR
+		elseif mount.passengers then
+			return categories.PASSENGER
+		elseif mount.travelModes.swimming then
+			return categories.AQUATIC
+		elseif mount.travelModes.waterWalking then
+			return categories.WATERWALKING
+		elseif mount.travelModes.flying then
+			return categories.FLYING
+		elseif mount.travelModes.ground then
+			return categories.GROUND
+		else 
+			return false
+		end
+	else
+		if mountType == 284 or mountType == 241 or mountType == 230 then
+			return categories.GROUND
+		elseif mountType == 269 then
+			return categories.WATERWALKING
+		elseif mountType == 254 or mountType == 232 or mountType == 231 then
+			return categories.AQUATIC
+		elseif mountType == 248 or mountTypes == 247 or mountType == 242 then
+			return categories.FLYING
+		else
+			return false
+		end
+	end
+end
+
+function EasyRider:CacheUsableMounts()
+	local playerFaction = UnitFactionGroup("player");
+	local localizedClass, englishClass, classIndex = UnitClass("unit");
+	local mountIDs = C_MountJournal.GetMountIDs();
+	local totalMounts = 0
+	local cachedMounts = 0
+
+	if EasyRider.debug then
+		EasyRider:Print("Caching mounts.... ")
+	end
+
+	usableMountCache = {}
+	usableMountCache.allMounts = {}
+	usableMountCache.categoryIndex = {}
+
+	for category = categories.GROUND, categories.VENDOR do
+		local index = tostring(category)
+		local count = 0
+	
+		usableMountCache.categoryIndex[tostring(category)] = {}
+		usableMountCache.categoryIndex[tostring(category)][tostring(false)] = {}
+		usableMountCache.categoryIndex[tostring(category)][tostring(true)] = {}
+	end
+	
+	for key, mountID in pairs(mountIDs) do
+		local name, spellID, icon, isActive, isUsable, sourceType, isFavorite, isFactionSpecific, faction, hideOnChar, isCollected = C_MountJournal.GetMountInfoByID(mountID)
+		local creatureDislayID, description, source, isSelfMount, mountType, uiModelScene = C_MountJournal.GetMountInfoExtraByID(mountID)
+		local index = tostring(spellID)
+		local category = GetMountCategory(mountID, mountType)
+
+		if isCollected and not hideOnChar then 
+			if ( category == categories.AQUATIC and PlayerCanUseMount(mountID) ) or isUsable then
+				local mount = {}
+				
+				mount.name = name
+				mount.spellID = spellID
+				mount.mountID = mountID
+				mount.icon = icon
+				mount.mountType = mountType
+				mount.isFavorite = isFavorite
+				mount.isSelfMount = isSelfMount
+
+				usableMountCache.allMounts[index] = mount
+
+				if category then
+					local count = #usableMountCache.categoryIndex[tostring(category)][tostring(false)]
+
+					usableMountCache.categoryIndex[tostring(category)][tostring(false)][count+1] = index
+					if mount.isFavorite then
+						count = #usableMountCache.categoryIndex[tostring(category)][tostring(true)]
+						usableMountCache.categoryIndex[tostring(category)][tostring(true)][count+1] = index
+					end
+				end
+	
+				cachedMounts = cachedMounts + 1
+			end
+		end
+		totalMounts = totalMounts + 1	
+	end
+
+	if EasyRider.debug then
+		EasyRider:Print(string.format("Cached %i of %i total  mounts.", cachedMounts, totalMounts))
+	end
+end
+
+function EasyRider:GetRandomMount(category, isFavorite)
+	if EasyRider.debug then
+		EasyRider:Print("Geting mount for category: "..category)
+	end
+
+	if not isFavorite then
+		isFavorite = false
+	end
+
+	if not usableMountCache.categoryIndex[tostring(category)] or #usableMountCache.categoryIndex[tostring(category)][tostring(isFavorite)] == 0 then
+		return nil
+	end
+
+	local count = #usableMountCache.categoryIndex[tostring(category)][tostring(isFavorite)]	
+	local index = fastrandom(1, count)
+	local spellID = usableMountCache.categoryIndex[tostring(category)][tostring(isFavorite)][index]
+
+	if EasyRider.debug then
+		EasyRider:Print("Found "..count.." mounts. Selected no. "..index.." with spell ID: "..spellID)
+	end
+
+	return usableMountCache.allMounts[spellID] 
+end
+
+function EasyRider:GetMountBySpellID(spellID)
+	local mount = usableMountCache.allMounts[tostring(spellID)]
+
+	return mount
+end
+
+function EasyRider:GetUsableMountTotal(category)
+	local mountTotal = 0
+
+	if usableMountCache and usableMountCache.categoryIndex and usableMountCache.categoryIndex[tostring(category)] and usableMountCache.categoryIndex[tostring(category)][tostring(false)] then
+		mountTotal =  #usableMountCache.categoryIndex[tostring(category)][tostring(false)]
+	end
+
+	return mountTotal
 end
